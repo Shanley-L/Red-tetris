@@ -1,0 +1,45 @@
+# Node modules
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+
+# Dependency directories
+client/node_modules/
+server/node_modules/
+
+# Environment files
+.env*
+
+# Editor directories and files
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Coverage and test output
+coverage/
+.nyc_output/
+
+# Misc
+*.tgz
+*.swp
+
+# Production files
+public/
+
+# Local config
+webpack-stats.json 
