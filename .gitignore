@@ -38,8 +38,5 @@ coverage/
 *.tgz
 *.swp
 
-# Production files
-public/
 
-# Local config
-webpack-stats.json 
+
