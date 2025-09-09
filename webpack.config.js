@@ -13,6 +13,10 @@ module.exports = {
         exclude: /node_modules/,
         use: 'babel-loader',
       },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader'],
+      },
     ],
   },
   resolve: {
@@ -20,7 +24,15 @@ module.exports = {
   },
   devServer: {
     static: './public',
-    port: 3000,
+    port: 8080,
+    historyApiFallback: true,
+    proxy: [
+      {
+        context: ['/socket.io'],
+        target: 'http://localhost:3000',
+        ws: true,
+      },
+    ],
   },
   mode: 'development'
 };
