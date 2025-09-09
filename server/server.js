@@ -5,7 +5,7 @@ const { Server } = require("socket.io");
 
 const Player = require('./classes/Player');
 const Board = require('./classes/Board');
-const Tetromino = require('./classes/Tetromino');
+const {Tetromino}= require('./classes/Tetromino');
 
 const app = express();
 const server = http.createServer(app);
