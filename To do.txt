@@ -1,0 +1,13 @@
+Protection SQLi home
+Front game a ameliorer
+
+Multi: 
+    room
+    spectrum update
+    join
+    socket
+    multiple room and game simultane
+
+
+
+Bonus ?

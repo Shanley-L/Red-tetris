@@ -1,9 +1,11 @@
 .board {
-    display: flex;
-    flex-direction: column;
-    border: 2px solid #fff;
+  display: inline-block;
+  background-color: #111;
+  padding: 4px;          /* réduit la bordure noire */
+  border-radius: 6px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 .row {
-    display: flex;
+  display: flex;
 }

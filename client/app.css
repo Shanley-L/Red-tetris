@@ -1,9 +1,33 @@
 .app {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    background-color: #282c34;
-    color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #282c34;
+  color: white;
+  position: relative; /* allow absolute-positioned children like the leave button */
 }
+
+.game-layout {
+  display: flex;
+  gap: 20px; /* espace entre plateau et preview */
+  align-items: flex-start;
+}
+
+.leave-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.leave-button:hover {
+  background: #c0392b;
+}
+

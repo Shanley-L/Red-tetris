@@ -1,0 +1,17 @@
+.next-piece {
+  display: inline-block;
+  background-color: #111;
+  padding: 4px;           /* padding réduit pour un cadre compact */
+  border-radius: 6px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+}
+
+.next-piece .row {
+  display: flex;
+}
+
+.next-piece .cell {
+  width: 40px;
+  height: 40px;
+  margin: 1px;
+}
