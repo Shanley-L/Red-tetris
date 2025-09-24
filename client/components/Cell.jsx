@@ -2,25 +2,20 @@ import React from 'react';
 import './Cell.css';
 
 const Cell = ({ type }) => {
-  let style = {
-    width: '20px',
-    height: '20px',
-    border: '1px solid #333',
-    boxSizing: 'border-box',
-  };
+  let className = 'cell';
 
   if (type === 0) {
-    style.backgroundColor = '#222';
+    className += ' empty';
   } else if (type === 8) {
-    style.backgroundColor = 'grey';
+    className += ' penalty';
   } else if (typeof type === 'string') {
-    style.backgroundColor = type;
+    // Ajouter la classe de couleur
+    className += ` filled ${type}`;
   } else {
-    style.backgroundColor = '#999';
+    className += ' filled';
   }
 
-  return <div className="cell" style={style}></div>;
+  return <div className={className}></div>;
 };
 
 export default Cell;
-

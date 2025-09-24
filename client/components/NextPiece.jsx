@@ -1,4 +1,6 @@
 import React from 'react';
+import Cell from './Cell';
+import './Board.css'; // ou Cell.css selon ton setup
 
 const NextPiece = ({ piece }) => {
   if (!piece) return null;
@@ -12,7 +14,7 @@ const NextPiece = ({ piece }) => {
   piece.shape.forEach((row, y) => {
     row.forEach((cell, x) => {
       if (y + offsetY < size && x + offsetX < size) {
-        grid[y + offsetY][x + offsetX] = cell;
+        grid[y + offsetY][x + offsetX] = cell ? piece.color : 0;
       }
     });
   });
@@ -23,16 +25,7 @@ const NextPiece = ({ piece }) => {
       {grid.map((row, y) => (
         <div key={y} className="row">
           {row.map((cell, x) => (
-            <div
-              key={x}
-              style={{
-                width: '20px',
-                height: '20px',
-                backgroundColor: cell ? piece.color : '#222',
-                border: '1px solid #333',
-                boxSizing: 'border-box'
-              }}
-            />
+            <Cell key={x} type={cell} />
           ))}
         </div>
       ))}
@@ -41,3 +34,4 @@ const NextPiece = ({ piece }) => {
 };
 
 export default NextPiece;
+

@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import Board from '../components/Board';
 import NextPiece from '../components/NextPiece';
-import '../app.css';
+import './GamePage.css';
+
 
 const socket = io();
 
@@ -55,13 +56,34 @@ const GamePage = () => {
   };
 
   return (
-    <div className="app" ref={appRef} tabIndex="0">
-      <h1>Red Tetris</h1>
-      <h2>Room: {roomName} | Player: {playerName}</h2>
-      <button className="leave-button" onClick={handleLeave}>Leave Room</button>
-      <div className="game-layout">
-        <Board board={board} />
-        <NextPiece piece={nextPiece} />
+    <div className="game-page" ref={appRef} tabIndex="0">
+      <div className="content">
+        <header className="game-header">
+          <div className="brand">Red Tetris</div>
+          <div className="meta">Room: {roomName} · Player: {playerName}</div>
+        </header>
+        <button className="leave-button" onClick={handleLeave}>Leave Room</button>
+        <div className="game-layout">
+          <aside className="side-left">
+            <div className="card">
+              <NextPiece piece={nextPiece} />
+            </div>
+          </aside>
+          <div className="board-wrapper">
+            <Board board={board} />
+          </div>
+          <aside className="side-right">
+            <div className="card controls">
+              <h3>Controls</h3>
+              <ul>
+                <li>← →: Move</li>
+                <li>↑: Rotate</li>
+                <li>↓: Soft Drop</li>
+                <li>Space: Hard Drop</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );
