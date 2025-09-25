@@ -37,9 +37,9 @@ const SHAPES = {
 const PIECE_TYPES = 'IOTLJSZ';
 
 class Tetromino {
-    constructor(type) {
+    constructor(type, randomFn = Math.random) {
         if (!type) {
-            type = PIECE_TYPES[Math.floor(Math.random() * PIECE_TYPES.length)];
+            type = PIECE_TYPES[Math.floor(randomFn() * PIECE_TYPES.length)];
         }
         const piece = SHAPES[type];
 

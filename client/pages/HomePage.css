@@ -61,8 +61,17 @@
     background-color: rgba(85,85,85,0.8);
 }
 
+.input-info {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    opacity: 0.7;
+    position: relative;
+    z-index: 1;
+    color: rgba(255,255,255,0.8);
+}
+
 .footer {
-    margin-top: 2rem;
+    margin-top: 1rem;
     font-style: italic;
     opacity: 0.8;
     position: relative;

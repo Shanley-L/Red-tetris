@@ -139,3 +139,124 @@
   opacity: 0.95;
   text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
 }
+
+/* Multiplayer UI */
+.host-indicator {
+  background: #ff6b35;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+}
+
+.room-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+
+.players-list h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+}
+
+.player {
+  padding: 4px 8px;
+  margin: 2px 0;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.player.host {
+  background: rgba(255,107,53,0.3);
+  font-weight: bold;
+}
+
+.start-game-button {
+  background: #4CAF50;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.start-game-button:hover {
+  background: #45a049;
+}
+
+.game-status {
+  color: #4CAF50;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+}
+
+.error-message {
+  text-align: center;
+  padding: 40px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.error-message h2 {
+  color: #ff6b6b;
+  margin-bottom: 20px;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+}
+
+.error-message button {
+  background: #ff6b6b;
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+
+.error-message button:hover {
+  background: #ff5252;
+}
+
+/* Spectrum view */
+.spectrum-info {
+  margin-bottom: 12px;
+}
+
+.player-name {
+  font-size: 12px;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+.spectrum-bars {
+  display: flex;
+  gap: 1px;
+  align-items: flex-end;
+  height: 40px;
+  background: rgba(0,0,0,0.2);
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.spectrum-bar {
+  flex: 1;
+  background: #ff6b35;
+  min-height: 2px;
+  border-radius: 1px;
+  transition: height 0.3s ease;
+}

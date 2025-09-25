@@ -17,6 +17,21 @@ const HomePage = () => {
     const [playerName, setPlayerName] = useState('');
     const navigate = useNavigate();
 
+    // Function to validate input - only allow letters and numbers
+    const validateInput = (value) => {
+        return value.replace(/[^a-zA-Z0-9]/g, '');
+    };
+
+    const handleRoomNameChange = (e) => {
+        const validatedValue = validateInput(e.target.value);
+        setRoomName(validatedValue);
+    };
+
+    const handlePlayerNameChange = (e) => {
+        const validatedValue = validateInput(e.target.value);
+        setPlayerName(validatedValue);
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         if (roomName && playerName) {
@@ -72,18 +87,19 @@ const HomePage = () => {
                     type="text"
                     placeholder="Room Name"
                     value={roomName}
-                    onChange={(e) => setRoomName(e.target.value)}
+                    onChange={handleRoomNameChange}
                     required
                 />
                 <input
                     type="text"
                     placeholder="Your Name"
                     value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
+                    onChange={handlePlayerNameChange}
                     required
                 />
                 <button type="submit">Join Game</button>
             </form>
+            <p className="input-info">Only letters and numbers are allowed in room names and player names</p>
             <p className="footer">Have fun & stack those blocks!</p>
         </div>
     );

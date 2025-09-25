@@ -1,12 +1,4 @@
-Protection SQLi home
-
-
-Multi: 
-    room
-    spectrum update
-    join
-    socket
-    multiple room and game simultane
+mutli
 
 
 
