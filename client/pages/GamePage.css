@@ -90,6 +90,7 @@
   background: rgba(0,0,0,0.15); /* foncé pour mieux voir les pièces */
   border-radius: 8px;
   backdrop-filter: blur(4px);
+  position: relative;
 }
 
 .side-left, .side-right {
@@ -232,6 +233,53 @@
   background: #ff5252;
 }
 
+.game-end-message {
+  text-align: center;
+  padding: 40px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.game-end-message h2 {
+  margin-bottom: 20px;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+  font-size: 28px;
+  color: #4CAF50; /* Default winner color */
+}
+
+/* Eliminated player styling */
+.game-end-message.eliminated h2 {
+  color: #ff6b6b;
+}
+
+.game-end-message.eliminated {
+  background: rgba(255, 107, 107, 0.1);
+  border: 2px solid rgba(255, 107, 107, 0.3);
+}
+
+.game-end-message p {
+  color: #fff;
+  margin-bottom: 30px;
+  font-size: 18px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+}
+
+.game-end-message button {
+  background: #4CAF50;
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+
+.game-end-message button:hover {
+  background: #45a049;
+}
+
 /* Spectrum view */
 .spectrum-info {
   margin-bottom: 12px;
@@ -259,4 +307,65 @@
   min-height: 2px;
   border-radius: 1px;
   transition: height 0.3s ease;
+}
+
+/* Penalty Notification */
+.penalty-notification {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.penalty-message {
+  background: rgba(255, 107, 107, 0.95);
+  border: 3px solid #ff6b6b;
+  border-radius: 12px;
+  padding: 20px 30px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(255, 107, 107, 0.4);
+  backdrop-filter: blur(8px);
+  animation: penaltyPulse 0.5s ease-out, penaltyFade 3s ease-in-out 0.5s forwards;
+}
+
+.penalty-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  animation: penaltyBounce 0.6s ease-out;
+}
+
+.penalty-text {
+  color: #fff;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+}
+
+.penalty-lines {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.penalty-from {
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+@keyframes penaltyPulse {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes penaltyBounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+@keyframes penaltyFade {
+  0% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
 }

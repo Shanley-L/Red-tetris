@@ -14,6 +14,7 @@ const {
     movePiece,
     lockPiece,
     clearLines,
+    addPenaltyLines,
     renderWithPiece,
 } = require('./logic/gameLogic');
 
@@ -41,6 +42,39 @@ function makePieceFromTetromino(t) {
     return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
 }
 
+function checkGameEnd(room) {
+    const activePlayers = room.getPlayers();
+    if (activePlayers.length <= 1) {
+        if (activePlayers.length === 1) {
+            // We have a winner!
+            const winner = activePlayers[0];
+            console.log(`\n=== GAME ENDED ===`);
+            console.log(`Winner: ${winner.name}`);
+            console.log(`=== END GAME ===\n`);
+            
+            // Announce winner to all players
+            room.getPlayers().forEach(player => {
+                player.socket.emit('gameEnd', { 
+                    winner: winner.name, 
+                    isWinner: player.socketId === winner.socketId 
+                });
+            });
+            
+            // Stop the game
+            room.stopGame();
+            return true;
+        } else {
+            // No players left
+            console.log(`\n=== GAME ENDED ===`);
+            console.log(`No players remaining`);
+            console.log(`=== END GAME ===\n`);
+            room.stopGame();
+            return true;
+        }
+    }
+    return false;
+}
+
 function handleGameTick(room) {
     if (!room.gameStarted) return;
     
@@ -57,8 +91,43 @@ function handleGameTick(room) {
             const { grid: cleared, linesCleared } = clearLines(locked);
             player.board.grid = cleared;
             
+            // Distribute penalty lines to other players if lines were cleared
+            if (linesCleared > 0) {
+                const penaltyLines = linesCleared - 1; // n-1 penalty lines
+                if (penaltyLines > 0) {
+                    console.log(`\n=== PENALTY LINE DISTRIBUTION ===`);
+                    console.log(`Player ${player.name} cleared ${linesCleared} lines, sending ${penaltyLines} penalty lines to opponents`);
+                    
+                    room.getPlayers().forEach(otherPlayer => {
+                        if (otherPlayer.socketId !== player.socketId) {
+                            console.log(`Adding ${penaltyLines} penalty lines to ${otherPlayer.name}`);
+                            otherPlayer.board.grid = addPenaltyLines(otherPlayer.board.grid, penaltyLines);
+                            
+                            // Send penalty notification to the player
+                            otherPlayer.socket.emit('penaltyReceived', {
+                                lines: penaltyLines,
+                                fromPlayer: player.name
+                            });
+                            
+                            // Check if penalty lines caused game over
+                            if (!canPlace(otherPlayer.board.grid, otherPlayer.currentPiece, 0, 0)) {
+                                console.log(`Game Over for ${otherPlayer.name} due to penalty lines`);
+                                otherPlayer.socket.emit('gameOver');
+                                room.removePlayer(otherPlayer.socketId);
+                                
+                                // Check if game should end (only one player left)
+                                if (checkGameEnd(room)) {
+                                    return; // Game ended, stop processing
+                                }
+                            }
+                        }
+                    });
+                    console.log(`=== END PENALTY LINE DISTRIBUTION ===\n`);
+                }
+            }
+            
             // Check if player needs a new sequence (reached end of current sequence)
-            if (player.sequenceIndex >= player.pieceSequence.length) {
+            if (player.sequenceIndex >= player.pieceSequence.length - 1) {
                 console.log(`\n=== REGENERATING SEQUENCE FOR ${player.name} ===`);
                 console.log(`Player ${player.name} reached end of sequence (${player.pieceSequence.length} pieces)`);
                 console.log(`Generating new 50-piece sequence for ${player.name}...`);
@@ -105,10 +174,15 @@ function handleGameTick(room) {
             
             // Check for game over after assigning new piece
             if (!canPlace(player.board.grid, player.currentPiece, 0, 0)) {
-                console.log("Game Over for", player.socketId);
+                console.log(`Game Over for ${player.name}`);
                 player.socket.emit('gameOver');
                 // Remove player from room
                 room.removePlayer(player.socketId);
+                
+                // Check if game should end (only one player left)
+                if (checkGameEnd(room)) {
+                    return; // Game ended, stop processing
+                }
                 return;
             }
         }
@@ -125,6 +199,21 @@ function handleGameTick(room) {
         player.socket.emit('updateBoard', {
             board: boardWithPiece,
             nextPiece: nextPieceSerialized
+        });
+    });
+    
+    // Send spectrum updates to all players
+    room.getPlayers().forEach(player => {
+        const otherPlayers = room.getPlayers().filter(p => p.socketId !== player.socketId);
+        const spectrums = otherPlayers.map(p => ({
+            name: p.name,
+            spectrum: room.getSpectrum(p)
+        }));
+        
+        player.socket.emit('roomUpdate', {
+            players: room.getPlayers().map(p => ({ name: p.name, isHost: p.socketId === room.host })),
+            spectrums: spectrums,
+            gameStarted: room.gameStarted
         });
     });
 }
@@ -146,6 +235,24 @@ function handleSoftDropTick(player) {
         if (player.softDropTimer) {
             clearInterval(player.softDropTimer);
             player.softDropTimer = null;
+        }
+        
+        // Send spectrum updates when piece locks during soft drop
+        if (player.room) {
+            const room = player.room;
+            room.getPlayers().forEach(p => {
+                const otherPlayers = room.getPlayers().filter(other => other.socketId !== p.socketId);
+                const spectrums = otherPlayers.map(other => ({
+                    name: other.name,
+                    spectrum: room.getSpectrum(other)
+                }));
+                
+                p.socket.emit('roomUpdate', {
+                    players: room.getPlayers().map(pl => ({ name: pl.name, isHost: pl.socketId === room.host })),
+                    spectrums: spectrums,
+                    gameStarted: room.gameStarted
+                });
+            });
         }
     }
 }

@@ -120,6 +120,7 @@ function clearLines(grid) {
     const newGrid = [];
 
     for (let y = 0; y < grid.length; y++) {
+        // Only clear lines that are full AND don't contain penalty blocks (8)
         const full = grid[y].every(cell => cell !== 0 && cell !== 8);
         if (full) {
             linesCleared++;
@@ -131,6 +132,33 @@ function clearLines(grid) {
         newGrid.unshift(Array(width).fill(0));
     }
     return { grid: newGrid, linesCleared };
+}
+
+function addPenaltyLines(grid, numLines) {
+    if (numLines <= 0) return grid;
+    
+    const width = grid[0]?.length || 0;
+    const newGrid = cloneGrid(grid);
+    
+    // Add penalty lines at the bottom
+    for (let i = 0; i < numLines; i++) {
+        // Create a penalty line with random gaps (indestructible)
+        const penaltyLine = Array(width).fill(8); // Use 8 to mark penalty blocks
+        // Add random gaps to make it more interesting
+        const gapCount = Math.floor(Math.random() * 3) + 1; // 1-3 gaps
+        for (let j = 0; j < gapCount; j++) {
+            const gapPos = Math.floor(Math.random() * width);
+            penaltyLine[gapPos] = 0;
+        }
+        newGrid.push(penaltyLine);
+    }
+    
+    // Remove lines from the top to maintain board height
+    while (newGrid.length > 20) {
+        newGrid.shift();
+    }
+    
+    return newGrid;
 }
 
 function renderWithPiece(grid, piece) {
@@ -156,6 +184,7 @@ module.exports = {
     movePiece,
     lockPiece,
     clearLines,
+    addPenaltyLines,
     renderWithPiece,
 };
 

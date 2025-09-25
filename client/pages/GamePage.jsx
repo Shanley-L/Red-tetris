@@ -18,6 +18,11 @@ const GamePage = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [isHost, setIsHost] = useState(false);
   const [error, setError] = useState(null);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [winner, setWinner] = useState(null);
+  const [isWinner, setIsWinner] = useState(false);
+  const [isEliminated, setIsEliminated] = useState(false);
+  const [penaltyNotification, setPenaltyNotification] = useState(null);
   const appRef = useRef(null);
 
   useEffect(() => {
@@ -67,8 +72,30 @@ const GamePage = () => {
     });
 
     socket.on('gameOver', () => {
-      alert('Game Over!');
-      navigate('/');
+      setGameEnded(true);
+      setIsEliminated(true);
+      setIsWinner(false);
+      setGameStarted(false);
+    });
+
+    socket.on('gameEnd', ({ winner, isWinner }) => {
+      setGameEnded(true);
+      setWinner(winner);
+      setIsWinner(isWinner);
+      setGameStarted(false);
+    });
+
+    socket.on('penaltyReceived', ({ lines, fromPlayer }) => {
+      setPenaltyNotification({
+        lines,
+        fromPlayer,
+        timestamp: Date.now()
+      });
+      
+      // Auto-hide notification after 3 seconds
+      setTimeout(() => {
+        setPenaltyNotification(null);
+      }, 3000);
     });
 
     return () => {
@@ -76,6 +103,8 @@ const GamePage = () => {
       socket.off('roomUpdate');
       socket.off('joinError');
       socket.off('gameOver');
+      socket.off('gameEnd');
+      socket.off('penaltyReceived');
       if (currentApp) {
         currentApp.removeEventListener('keydown', handleKeyDown);
         currentApp.removeEventListener('keyup', handleKeyUp);
@@ -97,6 +126,34 @@ const GamePage = () => {
         <div className="content">
           <div className="error-message">
             <h2>Error: {error}</h2>
+            <button onClick={handleLeave}>Back to Home</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameEnded) {
+    return (
+      <div className="game-page">
+        <div className="content">
+          <div className={`game-end-message ${isEliminated ? 'eliminated' : ''}`}>
+            {isWinner ? (
+              <>
+                <h2>🎉 You Won! 🎉</h2>
+                <p>Congratulations! You are the last player standing!</p>
+              </>
+            ) : isEliminated ? (
+              <>
+                <h2>💀 You Were Eliminated 💀</h2>
+                <p>Better luck next time! Your board got too full.</p>
+              </>
+            ) : (
+              <>
+                <h2>Game Over</h2>
+                <p>Winner: {winner}</p>
+              </>
+            )}
             <button onClick={handleLeave}>Back to Home</button>
           </div>
         </div>
@@ -164,6 +221,17 @@ const GamePage = () => {
           
           <div className="board-wrapper">
             <Board board={board} />
+            {penaltyNotification && (
+              <div className="penalty-notification">
+                <div className="penalty-message">
+                  <div className="penalty-icon">⚠️</div>
+                  <div className="penalty-text">
+                    <div className="penalty-lines">{penaltyNotification.lines} LINE PENALTY</div>
+                    <div className="penalty-from">from {penaltyNotification.fromPlayer}</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
           <aside className="side-right">
