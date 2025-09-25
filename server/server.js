@@ -44,28 +44,64 @@ function makePieceFromTetromino(t) {
 function handleGameTick(room) {
     if (!room.gameStarted) return;
     
-    // Check if we need to give new pieces to ALL players
-    const allPlayersNeedPieces = room.getPlayers().every(player => player.needsNewPiece);
-    
-    if (allPlayersNeedPieces) {
-        console.log(`\n=== SYNCHRONIZED PIECE DISTRIBUTION ===`);
-        console.log(`All players need pieces - giving synchronized pieces`);
-        console.log(`Sequence index before giving pieces: ${room.currentPieceIndex}`);
-        
-        // Give ALL players the SAME pieces from the SAME sequence positions
-        const currentPiece = room.pieceSequence[room.currentPieceIndex];
-        const nextPiece = room.pieceSequence[room.currentPieceIndex + 1];
-        
-        console.log(`Giving all players: current=${currentPiece.type}, next=${nextPiece.type}`);
-        console.log(`Piece at index ${room.currentPieceIndex}: ${currentPiece.type}`);
-        console.log(`Piece at index ${room.currentPieceIndex + 1}: ${nextPiece.type}`);
-        
-        room.getPlayers().forEach(player => {
-            player.currentPiece = makePieceFromTetromino(currentPiece);
-            player.nextPiece = nextPiece;
+    // Move pieces down and give new pieces to players who need them individually
+    room.getPlayers().forEach(player => {
+        const grid = player.board.grid;
+        const canFall = canPlace(grid, player.currentPiece, 0, 1);
+
+        if (canFall) {
+            player.currentPiece = movePiece(player.currentPiece, 0, 1);
+        } else {
+            // Piece needs to lock
+            const locked = lockPiece(grid, player.currentPiece);
+            const { grid: cleared, linesCleared } = clearLines(locked);
+            player.board.grid = cleared;
+            
+            // Check if player needs a new sequence (reached end of current sequence)
+            if (player.sequenceIndex >= player.pieceSequence.length) {
+                console.log(`\n=== REGENERATING SEQUENCE FOR ${player.name} ===`);
+                console.log(`Player ${player.name} reached end of sequence (${player.pieceSequence.length} pieces)`);
+                console.log(`Generating new 50-piece sequence for ${player.name}...`);
+                
+                // Generate new sequence for this player
+                player.pieceSequence = [];
+                const gameSeed = room.name.charCodeAt(0) + Date.now() + player.socketId.charCodeAt(0);
+                let randomSeed = gameSeed;
+                
+                const seededRandom = () => {
+                    randomSeed = (randomSeed * 1664525 + 1013904223) % Math.pow(2, 32);
+                    return randomSeed / Math.pow(2, 32);
+                };
+                
+                for (let i = 0; i < 50; i++) {
+                    player.pieceSequence.push(new Tetromino(null, seededRandom));
+                }
+                player.sequenceIndex = 0;
+                
+                console.log(`Generated new sequence for ${player.name} with ${player.pieceSequence.length} pieces`);
+                console.log(`First 10 pieces: ${player.pieceSequence.slice(0, 10).map(p => p.type).join(', ')}`);
+                console.log(`=== END SEQUENCE REGENERATION FOR ${player.name} ===\n`);
+            }
+            
+            // Give this player a new piece from their own sequence copy
+            const newCurrentPiece = player.pieceSequence[player.sequenceIndex];
+            const newNextPiece = player.pieceSequence[player.sequenceIndex + 1];
+            
+            console.log(`\n=== INDIVIDUAL SEQUENCE COPY PIECE DISTRIBUTION ===`);
+            console.log(`Player ${player.name} piece locked, giving new piece from their own sequence copy`);
+            console.log(`Player ${player.name} sequence index: ${player.sequenceIndex}`);
+            console.log(`New current piece: ${newCurrentPiece.type}, new next piece: ${newNextPiece.type}`);
+            
+            player.currentPiece = makePieceFromTetromino(newCurrentPiece);
+            player.nextPiece = newNextPiece;
             player.needsNewPiece = false;
             
-            console.log(`Player ${player.name} got new piece: current=${currentPiece.type}, next=${nextPiece.type}`);
+            // Advance this player's sequence index
+            player.sequenceIndex += 1;
+            
+            console.log(`Player ${player.name} got new piece: current=${newCurrentPiece.type}, next=${newNextPiece.type}`);
+            console.log(`Player ${player.name} sequence index advanced to: ${player.sequenceIndex}`);
+            console.log(`=== END INDIVIDUAL SEQUENCE COPY DISTRIBUTION ===\n`);
             
             // Check for game over after assigning new piece
             if (!canPlace(player.board.grid, player.currentPiece, 0, 0)) {
@@ -75,31 +111,8 @@ function handleGameTick(room) {
                 room.removePlayer(player.socketId);
                 return;
             }
-        });
-        
-        // Advance sequence index by 2 (current + next piece) ONCE for all players
-        room.currentPieceIndex += 2;
-        console.log(`Sequence index advanced to: ${room.currentPieceIndex}`);
-        console.log(`=== END SYNCHRONIZED DISTRIBUTION ===\n`);
-    } else {
-        // Move pieces down and mark who needs new pieces
-        room.getPlayers().forEach(player => {
-            const grid = player.board.grid;
-            const canFall = canPlace(grid, player.currentPiece, 0, 1);
-
-            if (canFall) {
-                player.currentPiece = movePiece(player.currentPiece, 0, 1);
-            } else {
-                // Piece needs to lock
-                const locked = lockPiece(grid, player.currentPiece);
-                const { grid: cleared, linesCleared } = clearLines(locked);
-                player.board.grid = cleared;
-                
-                // Mark this player as needing a new piece
-                player.needsNewPiece = true;
-            }
-        });
-    }
+        }
+    });
     
     // Send board updates to all players
     room.getPlayers().forEach(player => {

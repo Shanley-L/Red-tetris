@@ -104,7 +104,8 @@ class Room {
         const gameSeed = this.name.charCodeAt(0) + Date.now();
         this.setRandomSeed(gameSeed);
         
-        for (let i = 0; i < 1000; i++) { // Generate enough pieces for a game
+        // Generate 50 pieces at a time
+        for (let i = 0; i < 50; i++) {
             this.pieceSequence.push(new Tetromino(null, () => this.seededRandom()));
         }
         this.currentPieceIndex = 0;
@@ -127,8 +128,11 @@ class Room {
 
     getNextPiece() {
         if (this.currentPieceIndex >= this.pieceSequence.length) {
-            // Regenerate if we run out
+            console.log(`\n=== GENERATING NEW SEQUENCE ===`);
+            console.log(`Room ${this.name}: Reached end of sequence (${this.pieceSequence.length} pieces)`);
+            console.log(`Generating new 50-piece sequence...`);
             this.generatePieceSequence();
+            console.log(`=== END NEW SEQUENCE GENERATION ===\n`);
         }
         const piece = this.pieceSequence[this.currentPieceIndex++];
         console.log(`Room ${this.name}: Giving piece ${piece.type} at index ${this.currentPieceIndex - 1}`);
@@ -141,19 +145,21 @@ class Room {
         console.log(`Current sequence index: ${this.currentPieceIndex}`);
         console.log(`Players: ${Array.from(this.players.values()).map(p => p.name).join(', ')}`);
         
-        // Give all players the SAME pieces from the SAME sequence positions
-        const currentPiece = this.pieceSequence[this.currentPieceIndex];
-        const nextPiece = this.pieceSequence[this.currentPieceIndex + 1];
-        
-        console.log(`Giving all players: current=${currentPiece.type}, next=${nextPiece.type}`);
-        console.log(`Piece at index ${this.currentPieceIndex}: ${currentPiece.type}`);
-        console.log(`Piece at index ${this.currentPieceIndex + 1}: ${nextPiece.type}`);
-        
+        // Give each player their own copy of the sequence
         this.players.forEach(player => {
+            // Clone the sequence for this player
+            player.pieceSequence = [...this.pieceSequence];
+            player.sequenceIndex = this.currentPieceIndex;
+            
+            const currentPiece = player.pieceSequence[player.sequenceIndex];
+            const nextPiece = player.pieceSequence[player.sequenceIndex + 1];
+            
+            console.log(`Player ${player.name} got sequence copy with ${player.pieceSequence.length} pieces`);
+            console.log(`Player ${player.name} starting at index: ${player.sequenceIndex}`);
+            console.log(`Player ${player.name} got pieces: current=${currentPiece.type}, next=${nextPiece.type}`);
+            
             player.currentPiece = this.makePieceFromTetromino(currentPiece);
             player.nextPiece = nextPiece;
-            
-            console.log(`Player ${player.name} got pieces: current=${currentPiece.type}, next=${nextPiece.type}`);
             
             // Send board update to this player
             if (player.socket) {
@@ -170,8 +176,8 @@ class Room {
             }
         });
         
-        // Advance sequence index by 2 (current + next piece)
-        this.currentPieceIndex += 2;
+        // Advance sequence index by 1 (only the current piece) to match game tick logic
+        this.currentPieceIndex += 1;
         console.log(`Sequence index advanced to: ${this.currentPieceIndex}`);
         console.log(`=== END INITIALIZATION ===\n`);
     }
