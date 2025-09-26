@@ -67,8 +67,13 @@ const GamePage = () => {
       setIsHost(players.find(p => p.name === playerName)?.isHost || false);
     });
 
-    socket.on('joinError', ({ message }) => {
-      setError(message);
+    socket.on('joinError', ({ message, code }) => {
+      setError(`${message} (${code})`);
+    });
+
+    socket.on('moveError', ({ message, code }) => {
+      console.error(`Move error: ${message} (${code})`);
+      // Could show a toast notification here
     });
 
     socket.on('gameOver', () => {
@@ -102,6 +107,7 @@ const GamePage = () => {
       socket.off('updateBoard');
       socket.off('roomUpdate');
       socket.off('joinError');
+      socket.off('moveError');
       socket.off('gameOver');
       socket.off('gameEnd');
       socket.off('penaltyReceived');

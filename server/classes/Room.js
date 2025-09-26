@@ -1,6 +1,7 @@
 const Player = require('./Player');
 const Board = require('./Board');
 const { Tetromino } = require('./Tetromino');
+const { RoomError, PlayerError } = require('../errors');
 
 class Room {
     constructor(roomName) {
@@ -15,6 +16,18 @@ class Room {
     }
 
     addPlayer(socketId, playerName) {
+        if (!socketId || !playerName) {
+            throw new PlayerError('Socket ID and player name are required');
+        }
+        
+        if (this.players.has(socketId)) {
+            throw new PlayerError('Player with this socket ID already exists');
+        }
+        
+        if (this.players.size >= 2) {
+            throw new RoomError('Room is full (maximum 2 players)');
+        }
+        
         const player = new Player(socketId);
         player.name = playerName;
         player.board = new Board();
@@ -66,7 +79,13 @@ class Room {
     }
 
     startGame() {
-        if (this.gameStarted || this.players.size === 0) return false;
+        if (this.gameStarted) {
+            throw new RoomError('Game has already started');
+        }
+        
+        if (this.players.size === 0) {
+            throw new RoomError('Cannot start game with no players');
+        }
         
         this.gameStarted = true;
         

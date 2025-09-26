@@ -3,7 +3,7 @@ import Cell from './Cell';
 import './Board.css'; // ou Cell.css selon ton setup
 
 const NextPiece = ({ piece }) => {
-  if (!piece) return null;
+  if (!piece || !piece.shape || !piece.shape[0]) return null;
 
   const size = 4;
   const grid = Array.from({ length: size }, () => Array(size).fill(0));

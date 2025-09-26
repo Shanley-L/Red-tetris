@@ -8,6 +8,7 @@ const Player = require('./classes/Player');
 const Board = require('./classes/Board');
 const Room = require('./classes/Room');
 const { Tetromino } = require('./classes/Tetromino');
+const { RoomError, PlayerError, ValidationError, NetworkError } = require('./errors');
 const {
     canPlace,
     rotatePieceWithKicks,
@@ -281,30 +282,74 @@ io.on('connection', (socket) => {
     let currentPlayer = null;
 
     socket.on('joinRoom', ({ roomName, playerName }) => {
-        console.log(`Player ${playerName} trying to join room ${roomName}`);
-        
-        // Get or create room
-        if (!rooms.has(roomName)) {
-            rooms.set(roomName, new Room(roomName));
-        }
-        
-        const room = rooms.get(roomName);
-        
-        // Check if player with this name is already in the room (reconnection)
-        const existingPlayer = room.getPlayers().find(p => p.name === playerName);
-        if (existingPlayer) {
-            // Player is reconnecting, update socket reference and ID
-            const oldSocketId = existingPlayer.socketId;
-            existingPlayer.socket = socket;
-            existingPlayer.socketId = socket.id;
-            currentPlayer = existingPlayer;
+        try {
+            console.log(`Player ${playerName} trying to join room ${roomName}`);
+            
+            // Validate input
+            if (!roomName || !playerName) {
+                throw new ValidationError('Room name and player name are required');
+            }
+            
+            if (roomName.length > 20 || playerName.length > 20) {
+                throw new ValidationError('Room name and player name must be 20 characters or less');
+            }
+            
+            // Get or create room
+            if (!rooms.has(roomName)) {
+                rooms.set(roomName, new Room(roomName));
+            }
+            
+            const room = rooms.get(roomName);
+            
+            // Check if player with this name is already in the room (reconnection)
+            const existingPlayer = room.getPlayers().find(p => p.name === playerName);
+            if (existingPlayer) {
+                // Player is reconnecting, update socket reference and ID
+                const oldSocketId = existingPlayer.socketId;
+                existingPlayer.socket = socket;
+                existingPlayer.socketId = socket.id;
+                currentPlayer = existingPlayer;
+                currentRoom = room;
+                
+                // Update the room's player map with new socket ID
+                room.players.delete(oldSocketId); // Remove old entry
+                room.players.set(socket.id, existingPlayer); // Add with new socket ID
+                
+                // Send current board state
+                if (currentPlayer.currentPiece) {
+                    const boardWithPiece = renderWithPiece(currentPlayer.board.grid, currentPlayer.currentPiece);
+                    socket.emit('updateBoard', {
+                        board: boardWithPiece,
+                        nextPiece: serializePiece(makePieceFromTetromino(currentPlayer.nextPiece))
+                    });
+                } else {
+                    // No pieces yet, send empty board
+                    socket.emit('updateBoard', {
+                        board: currentPlayer.board.grid,
+                        nextPiece: null
+                    });
+                }
+                
+                // Broadcast room update
+                broadcastRoomUpdate(room);
+                console.log(`Player ${playerName} reconnected to room ${roomName}`);
+                return;
+            }
+            
+            // Check if room can accept new players
+            if (!room.canJoin()) {
+                throw new RoomError('Room is full or game has started', 'ROOM_FULL_OR_STARTED');
+            }
+            
+            // Add new player to room
+            currentPlayer = room.addPlayer(socket.id, playerName);
+            currentPlayer.socket = socket;
             currentRoom = room;
             
-            // Update the room's player map with new socket ID
-            room.players.delete(oldSocketId); // Remove old entry
-            room.players.set(socket.id, existingPlayer); // Add with new socket ID
+            // Don't initialize pieces until game starts
+            // Pieces will be given when the game actually starts
             
-            // Send current board state
+            // Send initial board state
             if (currentPlayer.currentPiece) {
                 const boardWithPiece = renderWithPiece(currentPlayer.board.grid, currentPlayer.currentPiece);
                 socket.emit('updateBoard', {
@@ -319,45 +364,17 @@ io.on('connection', (socket) => {
                 });
             }
             
-            // Broadcast room update
+            // Broadcast room update to all players
             broadcastRoomUpdate(room);
-            console.log(`Player ${playerName} reconnected to room ${roomName}`);
-            return;
-        }
-        
-        // Check if room can accept new players
-        if (!room.canJoin()) {
-            socket.emit('joinError', { message: 'Room is full or game has started' });
-            return;
-        }
-        
-        // Add new player to room
-        currentPlayer = room.addPlayer(socket.id, playerName);
-        currentPlayer.socket = socket;
-        currentRoom = room;
-        
-        // Don't initialize pieces until game starts
-        // Pieces will be given when the game actually starts
-        
-        // Send initial board state
-        if (currentPlayer.currentPiece) {
-            const boardWithPiece = renderWithPiece(currentPlayer.board.grid, currentPlayer.currentPiece);
-            socket.emit('updateBoard', {
-                board: boardWithPiece,
-                nextPiece: serializePiece(makePieceFromTetromino(currentPlayer.nextPiece))
-            });
-        } else {
-            // No pieces yet, send empty board
-            socket.emit('updateBoard', {
-                board: currentPlayer.board.grid,
-                nextPiece: null
+            
+            console.log(`Player ${playerName} joined room ${roomName}`);
+        } catch (error) {
+            console.error(`Error joining room: ${error.message}`);
+            socket.emit('joinError', { 
+                message: error.message,
+                code: error.code || 'UNKNOWN_ERROR'
             });
         }
-        
-        // Broadcast room update to all players
-        broadcastRoomUpdate(room);
-        
-        console.log(`Player ${playerName} joined room ${roomName}`);
     });
 
     socket.on('startGame', () => {
@@ -380,50 +397,69 @@ io.on('connection', (socket) => {
     });
 
     socket.on('move', ({ direction }) => {
-        if (!currentRoom || !currentPlayer || !currentRoom.gameStarted) return;
-        
-        const grid = currentPlayer.board.grid;
-        
-        if (direction === 'hardDrop') {
-            let falling = currentPlayer.currentPiece;
-            while (canPlace(grid, falling, 0, 1)) {
-                falling = movePiece(falling, 0, 1);
+        try {
+            if (!currentRoom || !currentPlayer || !currentRoom.gameStarted) {
+                throw new PlayerError('Game not started or player not in room', 'GAME_NOT_STARTED');
             }
-            currentPlayer.currentPiece = falling;
-            handleGameTick(currentRoom);
-            return;
-        }
-
-        if (direction === 'rotate') {
-            const rotated = rotatePieceWithKicks(grid, currentPlayer.currentPiece, 'CW');
-            currentPlayer.currentPiece = rotated;
-        } else if (direction === 'down') {
-            // Start soft drop
-            if (!currentPlayer.isSoftDropping) {
-                currentPlayer.isSoftDropping = true;
-                if (currentPlayer.softDropTimer) {
-                    clearInterval(currentPlayer.softDropTimer);
+            
+            if (!currentPlayer.currentPiece) {
+                throw new PlayerError('No current piece available', 'NO_CURRENT_PIECE');
+            }
+            
+            const validDirections = ['left', 'right', 'down', 'rotate', 'hardDrop'];
+            if (!validDirections.includes(direction)) {
+                throw new ValidationError(`Invalid direction: ${direction}`, 'INVALID_DIRECTION');
+            }
+            
+            const grid = currentPlayer.board.grid;
+            
+            if (direction === 'hardDrop') {
+                let falling = currentPlayer.currentPiece;
+                while (canPlace(grid, falling, 0, 1)) {
+                    falling = movePiece(falling, 0, 1);
                 }
-                currentPlayer.softDropTimer = setInterval(() => {
-                    handleSoftDropTick(currentPlayer);
-                }, 50);
+                currentPlayer.currentPiece = falling;
+                handleGameTick(currentRoom);
+                return;
             }
-        } else {
-            let dx = 0, dy = 0;
-            if (direction === 'left') dx = -1;
-            if (direction === 'right') dx = 1;
 
-            const moved = movePiece(currentPlayer.currentPiece, dx, dy);
-            if (canPlace(grid, moved, 0, 0)) {
-                currentPlayer.currentPiece = moved;
+            if (direction === 'rotate') {
+                const rotated = rotatePieceWithKicks(grid, currentPlayer.currentPiece, 'CW');
+                currentPlayer.currentPiece = rotated;
+            } else if (direction === 'down') {
+                // Start soft drop
+                if (!currentPlayer.isSoftDropping) {
+                    currentPlayer.isSoftDropping = true;
+                    if (currentPlayer.softDropTimer) {
+                        clearInterval(currentPlayer.softDropTimer);
+                    }
+                    currentPlayer.softDropTimer = setInterval(() => {
+                        handleSoftDropTick(currentPlayer);
+                    }, 50);
+                }
+            } else {
+                let dx = 0, dy = 0;
+                if (direction === 'left') dx = -1;
+                if (direction === 'right') dx = 1;
+
+                const moved = movePiece(currentPlayer.currentPiece, dx, dy);
+                if (canPlace(grid, moved, 0, 0)) {
+                    currentPlayer.currentPiece = moved;
+                }
             }
+
+            const boardWithPiece = renderWithPiece(currentPlayer.board.grid, currentPlayer.currentPiece);
+            socket.emit('updateBoard', {
+                board: boardWithPiece,
+                nextPiece: serializePiece(makePieceFromTetromino(currentPlayer.nextPiece))
+            });
+        } catch (error) {
+            console.error(`Error handling move: ${error.message}`);
+            socket.emit('moveError', { 
+                message: error.message,
+                code: error.code || 'MOVE_ERROR'
+            });
         }
-
-        const boardWithPiece = renderWithPiece(currentPlayer.board.grid, currentPlayer.currentPiece);
-        socket.emit('updateBoard', {
-            board: boardWithPiece,
-            nextPiece: serializePiece(makePieceFromTetromino(currentPlayer.nextPiece))
-        });
     });
 
     socket.on('stopSoftDrop', () => {

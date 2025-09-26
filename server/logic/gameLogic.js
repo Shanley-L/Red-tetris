@@ -178,8 +178,10 @@ function renderWithPiece(grid, piece) {
 }
 
 module.exports = {
+    cloneGrid,
     canPlace,
     rotateShape,
+    rotateShapeCCW,
     rotatePieceWithKicks,
     movePiece,
     lockPiece,
