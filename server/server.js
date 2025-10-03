@@ -143,7 +143,7 @@ function handleGameTick(room) {
                     return randomSeed / Math.pow(2, 32);
                 };
                 
-                for (let i = 0; i < 50; i++) {
+                for (let i = 0; i < 500; i++) {
                     player.pieceSequence.push(new Tetromino(null, seededRandom));
                 }
                 player.sequenceIndex = 0;
