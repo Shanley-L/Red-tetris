@@ -15,7 +15,7 @@ const Cell = ({ type }) => {
     className += ' filled';
   }
 
-  return <div className={className} data-testid="cell-element"></div>;
+  return <div className={className} data-testid="cell"></div>;
 };
 
 export default Cell;

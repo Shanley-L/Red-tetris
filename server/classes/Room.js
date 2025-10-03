@@ -59,6 +59,7 @@ class Room {
             
             // If no players left, room should be cleaned up
             if (this.players.size === 0) {
+            this.host = null;
                 this.cleanup();
                 return true; // Room should be deleted
             }
@@ -108,11 +109,27 @@ class Room {
             this.gameLoop = null;
         }
         
-        // Clear all player timers
+        // Reset players state and clear timers
         this.players.forEach(player => {
             if (player.gameLoop) clearInterval(player.gameLoop);
             if (player.softDropTimer) clearInterval(player.softDropTimer);
+            player.isSoftDropping = false;
+            player.currentPiece = null;
+            player.nextPiece = null;
+            // Reset board to empty
+            if (player.board) {
+                player.board = new Board();
+            } else {
+                player.board = new Board();
+            }
+            // Reset per-player sequence tracking
+            player.pieceSequence = [];
+            player.sequenceIndex = 0;
         });
+
+        // Reset room sequence tracking
+        this.pieceSequence = [];
+        this.currentPieceIndex = 0;
     }
 
     generatePieceSequence() {

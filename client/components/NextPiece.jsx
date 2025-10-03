@@ -14,7 +14,7 @@ const NextPiece = ({ piece }) => {
   piece.shape.forEach((row, y) => {
     row.forEach((cell, x) => {
       if (y + offsetY < size && x + offsetX < size) {
-        grid[y + offsetY][x + offsetX] = cell ? piece.color : 0;
+        grid[y + offsetY][x + offsetX] = cell ? (piece.color || cell) : 0;
       }
     });
   });

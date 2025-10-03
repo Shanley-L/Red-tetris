@@ -115,6 +115,8 @@ function handleGameTick(room) {
                                 console.log(`Game Over for ${otherPlayer.name} due to penalty lines`);
                                 otherPlayer.socket.emit('gameOver');
                                 room.removePlayer(otherPlayer.socketId);
+                                // Reflect host reassignment and player list immediately
+                                broadcastRoomUpdate(room);
                                 
                                 // Check if game should end (only one player left)
                                 if (checkGameEnd(room)) {
@@ -143,7 +145,7 @@ function handleGameTick(room) {
                     return randomSeed / Math.pow(2, 32);
                 };
                 
-                for (let i = 0; i < 500; i++) {
+                for (let i = 0; i < 50; i++) {
                     player.pieceSequence.push(new Tetromino(null, seededRandom));
                 }
                 player.sequenceIndex = 0;
@@ -179,6 +181,8 @@ function handleGameTick(room) {
                 player.socket.emit('gameOver');
                 // Remove player from room
                 room.removePlayer(player.socketId);
+                // Reflect host reassignment and player list immediately
+                broadcastRoomUpdate(room);
                 
                 // Check if game should end (only one player left)
                 if (checkGameEnd(room)) {
