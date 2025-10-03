@@ -1,3 +1,11 @@
+/* Global: prevent scrolling on all pages */
+html, body, #root {
+    height: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
 .home-page {
     position: relative;
     display: flex;
@@ -78,6 +86,53 @@
     z-index: 1;
 }
 
+.bonus-button {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1000;
+    cursor: pointer;
+
+    /* Glassy pastel pill to match page theme */
+    background: linear-gradient(135deg, rgba(255, 168, 120, 0.9), rgba(255, 120, 96, 0.9));
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.35);
+    padding: 12px 20px;
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.35);
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    box-shadow:
+        0 8px 24px rgba(0,0,0,0.25),
+        0 0 0 2px rgba(255,255,255,0.08) inset,
+        0 0 18px rgba(255, 120, 96, 0.45);
+    transition: transform 0.15s ease, box-shadow 0.25s ease, background 0.25s ease;
+
+    animation: bonusFloat 4.5s ease-in-out infinite;
+}
+
+.bonus-button:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow:
+        0 12px 28px rgba(0,0,0,0.28),
+        0 0 0 2px rgba(255,255,255,0.12) inset,
+        0 0 28px rgba(255, 140, 110, 0.6);
+    background: linear-gradient(135deg, rgba(255, 178, 130, 0.95), rgba(255, 130, 106, 0.95));
+}
+
+.bonus-button:active {
+    transform: translateY(0) scale(0.99);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.22);
+}
+
+@keyframes bonusFloat {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+    100% { transform: translateY(0); }
+}
+
 /* Animation des blocs */
 .tetris-piece {
     position: absolute;
@@ -106,3 +161,32 @@
 .block-cell.filled {
   box-shadow: inset 0 0 2px rgba(0,0,0,0.4);
 }
+
+/* Bonus Home sub-actions */
+.bonus-actions {
+    margin-top: 1.2rem;
+    display: flex;
+    gap: 12px;
+    z-index: 1;
+}
+
+.bonus-action {
+    background: rgba(0,0,0,0.22);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.25s ease;
+}
+
+.bonus-action:hover {
+    transform: translateY(-2px);
+    background: rgba(0,0,0,0.3);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+}
+
+.bonus-action.speed { border-color: rgba(255, 235, 59, 0.6); }
+.bonus-action.bricks { border-color: rgba(129, 199, 132, 0.6); }

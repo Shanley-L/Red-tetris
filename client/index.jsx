@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
+import BonusHomePage from './pages/BonusHomePage';
 import GamePage from './pages/GamePage';
 import './pages/HomePage.css';
 
@@ -11,6 +12,7 @@ root.render(
   <Router>
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/bonus" element={<BonusHomePage />} />
       <Route path="/:roomName/:playerName" element={<GamePage />} />
     </Routes>
   </Router>

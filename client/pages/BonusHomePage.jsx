@@ -3,34 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import './HomePage.css';
 
 const SHAPES = [
-    { shape: [[1,1,1,1]], color: 'cyan' },          // I
-    { shape: [[1,1],[1,1]], color: 'yellow' },      // O
-    { shape: [[0,1,0],[1,1,1]], color: 'purple' },  // T
-    { shape: [[0,0,1],[1,1,1]], color: 'orange' },  // L
-    { shape: [[1,0,0],[1,1,1]], color: 'blue' },    // J
-    { shape: [[0,1,1],[1,1,0]], color: 'green' },   // S
-    { shape: [[1,1,0],[0,1,1]], color: 'red' },     // Z
+    { shape: [[1,1,1,1]], color: 'cyan' },
+    { shape: [[1,1],[1,1]], color: 'yellow' },
+    { shape: [[0,1,0],[1,1,1]], color: 'purple' },
+    { shape: [[0,0,1],[1,1,1]], color: 'orange' },
+    { shape: [[1,0,0],[1,1,1]], color: 'blue' },
+    { shape: [[0,1,1],[1,1,0]], color: 'green' },
+    { shape: [[1,1,0],[0,1,1]], color: 'red' },
 ];
 
-const HomePage = () => {
+const BonusHomePage = () => {
     const [roomName, setRoomName] = useState('');
     const [playerName, setPlayerName] = useState('');
     const navigate = useNavigate();
 
-    // Function to validate input - only allow letters and numbers
-    const validateInput = (value) => {
-        return value.replace(/[^a-zA-Z0-9]/g, '');
-    };
+    const validateInput = (value) => value.replace(/[^a-zA-Z0-9]/g, '');
 
-    const handleRoomNameChange = (e) => {
-        const validatedValue = validateInput(e.target.value);
-        setRoomName(validatedValue);
-    };
-
-    const handlePlayerNameChange = (e) => {
-        const validatedValue = validateInput(e.target.value);
-        setPlayerName(validatedValue);
-    };
+    const handleRoomNameChange = (e) => setRoomName(validateInput(e.target.value));
+    const handlePlayerNameChange = (e) => setPlayerName(validateInput(e.target.value));
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -54,7 +44,6 @@ const HomePage = () => {
 
     return (
         <div className="home-page">
-            {/* Fond animé */}
             {pieces.map(p => (
                 <div
                     key={p.id}
@@ -69,20 +58,22 @@ const HomePage = () => {
                         <div className="row" key={y}>
                             {row.map((cell, x) => (
                                 <div
-  key={x}
-  className={`block-cell ${cell ? 'filled' : ''}`}
-  style={{ backgroundColor: cell ? p.piece.color : 'transparent' }}
-/>
-
-
+                                    key={x}
+                                    className={`block-cell ${cell ? 'filled' : ''}`}
+                                    style={{ backgroundColor: cell ? p.piece.color : 'transparent' }}
+                                />
                             ))}
                         </div>
                     ))}
                 </div>
             ))}
 
-            <h1 className="title">Red Tetris</h1>
+            <h1 className="title">Red Tetris — Bonus</h1>
             <form onSubmit={handleSubmit} className="home-form">
+                <div className="bonus-actions" role="group" aria-label="Bonus actions">
+                    <button type="button" className="bonus-action speed" onClick={() => alert('⚡ Speed game coming soon!')}>Speed game</button>
+                    <button type="button" className="bonus-action bricks" onClick={() => alert('🧱 New bricks coming soon!')}>New bricks</button>
+                </div>
                 <input
                     type="text"
                     placeholder="Room Name"
@@ -99,19 +90,13 @@ const HomePage = () => {
                 />
                 <button type="submit">Join Game</button>
             </form>
+
             <p className="input-info">Only letters and numbers are allowed in room names and player names</p>
             <p className="footer">Have fun & stack those blocks!</p>
-
-            <button
-                type="button"
-                className="bonus-button"
-                onClick={() => navigate('/bonus')}
-                aria-label="Bonus"
-            >
-                Bonus
-            </button>
         </div>
     );
 };
 
-export default HomePage;
+export default BonusHomePage;
+
+
