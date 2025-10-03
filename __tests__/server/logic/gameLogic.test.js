@@ -200,10 +200,11 @@ describe('Game Logic Functions', () => {
             const locked = lockPiece(testGrid, testPiece);
             
             // Check that piece blocks are placed (should be color or shape value)
-            expect(locked[0][3]).toBe('purple'); // Top center
-            expect(locked[1][2]).toBe('purple'); // Middle left
-            expect(locked[1][3]).toBe('purple'); // Middle center
-            expect(locked[1][4]).toBe('purple'); // Middle right
+            // T-piece at x=3, y=0: shape [0,1,0], [1,1,1], [0,0,0]
+            expect(locked[0][4]).toBe('purple'); // Top center (y=0, x=3+1=4)
+            expect(locked[1][3]).toBe('purple'); // Middle left (y=1, x=3+0=3)
+            expect(locked[1][4]).toBe('purple'); // Middle center (y=1, x=3+1=4)
+            expect(locked[1][5]).toBe('purple'); // Middle right (y=1, x=3+2=5)
         });
 
         test('should not modify original grid', () => {
@@ -215,8 +216,8 @@ describe('Game Logic Functions', () => {
         test('should handle piece at bottom of grid', () => {
             testPiece.y = 18;
             const locked = lockPiece(testGrid, testPiece);
-            expect(locked[18][3]).toBe('purple');
-            expect(locked[19][2]).toBe('purple');
+            expect(locked[18][4]).toBe('purple'); // Top center (y=18, x=3+1=4)
+            expect(locked[19][3]).toBe('purple'); // Middle left (y=19, x=3+0=3)
         });
     });
 
@@ -298,10 +299,11 @@ describe('Game Logic Functions', () => {
             const rendered = renderWithPiece(testGrid, testPiece);
             
             // Check that piece is rendered (should be color or shape value)
-            expect(rendered[0][3]).toBe('purple');
-            expect(rendered[1][2]).toBe('purple');
-            expect(rendered[1][3]).toBe('purple');
-            expect(rendered[1][4]).toBe('purple');
+            // T-piece at x=3, y=0: shape [0,1,0], [1,1,1], [0,0,0]
+            expect(rendered[0][4]).toBe('purple'); // Top center (y=0, x=3+1=4)
+            expect(rendered[1][3]).toBe('purple'); // Middle left (y=1, x=3+0=3)
+            expect(rendered[1][4]).toBe('purple'); // Middle center (y=1, x=3+1=4)
+            expect(rendered[1][5]).toBe('purple'); // Middle right (y=1, x=3+2=5)
         });
 
         test('should not modify original grid', () => {
@@ -313,13 +315,25 @@ describe('Game Logic Functions', () => {
         test('should handle piece partially off grid', () => {
             testPiece.x = -1; // Partially off left edge
             const rendered = renderWithPiece(testGrid, testPiece);
-            expect(rendered[0][2]).toBe('purple'); // Only visible part
+            // T-piece at x=-1, y=0: shape [0,1,0], [1,1,1], [0,0,0]
+            // Only positions with x >= 0 will be rendered
+            // [0][1] -> x=-1+1=0, y=0+0=0 -> rendered[0][0]
+            // [1][1] -> x=-1+1=0, y=0+1=1 -> rendered[1][0]
+            // [1][2] -> x=-1+2=1, y=0+1=1 -> rendered[1][1]
+            expect(rendered[0][0]).toBe('purple'); // Top center visible part
+            expect(rendered[1][0]).toBe('purple'); // Middle center visible part
+            expect(rendered[1][1]).toBe('purple'); // Middle right visible part
         });
 
         test('should handle piece with no color', () => {
             delete testPiece.color;
             const rendered = renderWithPiece(testGrid, testPiece);
-            expect(rendered[0][3]).toBe(1); // Should use shape value
+            // T-piece at x=3, y=0: shape [0,1,0], [1,1,1], [0,0,0]
+            // Should use shape value (1) since no color
+            expect(rendered[0][4]).toBe(1); // Top center (y=0, x=3+1=4)
+            expect(rendered[1][3]).toBe(1); // Middle left (y=1, x=3+0=3)
+            expect(rendered[1][4]).toBe(1); // Middle center (y=1, x=3+1=4)
+            expect(rendered[1][5]).toBe(1); // Middle right (y=1, x=3+2=5)
         });
     });
 

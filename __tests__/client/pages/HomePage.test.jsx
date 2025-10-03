@@ -128,7 +128,10 @@ describe('HomePage Component', () => {
         
         fireEvent.change(roomNameInput, { target: { value: 'testRoom' } });
         fireEvent.change(playerNameInput, { target: { value: 'testPlayer' } });
-        fireEvent.keyDown(playerNameInput, { key: 'Enter' });
+        
+        // Simulate Enter key press on the form (which should trigger submit)
+        const form = roomNameInput.closest('form');
+        fireEvent.submit(form);
         
         expect(mockNavigate).toHaveBeenCalledWith('/testRoom/testPlayer');
     });

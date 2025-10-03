@@ -474,6 +474,20 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('leaveRoom', () => {
+        if (!currentRoom || !currentPlayer) return;
+        console.log(`Player ${currentPlayer.name} leaving room ${currentRoom.name}`);
+        const shouldDeleteRoom = currentRoom.removePlayer(socket.id);
+        if (shouldDeleteRoom) {
+            rooms.delete(currentRoom.name);
+            console.log(`Room ${currentRoom.name} deleted`);
+        } else {
+            broadcastRoomUpdate(currentRoom);
+        }
+        currentRoom = null;
+        currentPlayer = null;
+    });
+
     socket.on('disconnect', () => {
         console.log(`User disconnected: ${socket.id}`);
         

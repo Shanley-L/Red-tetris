@@ -24,10 +24,15 @@ const GamePage = () => {
   const [isEliminated, setIsEliminated] = useState(false);
   const [penaltyNotification, setPenaltyNotification] = useState(null);
   const appRef = useRef(null);
+  const gameStartedRef = useRef(false);
+
+  const joinedRef = useRef(false);
 
   useEffect(() => {
-    // Join room when component mounts
-    socket.emit('joinRoom', { roomName, playerName });
+    if (!joinedRef.current) {
+      socket.emit('joinRoom', { roomName, playerName });
+      joinedRef.current = true;
+    }
 
     const handleKeyDown = (event) => {
       event.preventDefault();
@@ -39,7 +44,7 @@ const GamePage = () => {
         ' ': 'hardDrop'
       };
       const dir = directions[event.key];
-      if (dir && gameStarted) socket.emit('move', { direction: dir });
+      if (dir && gameStartedRef.current) socket.emit('move', { direction: dir });
     };
 
     const handleKeyUp = (event) => {
@@ -81,6 +86,7 @@ const GamePage = () => {
       setIsEliminated(true);
       setIsWinner(false);
       setGameStarted(false);
+      socket.emit('leaveRoom');
     });
 
     socket.on('gameEnd', ({ winner, isWinner }) => {
@@ -88,6 +94,7 @@ const GamePage = () => {
       setWinner(winner);
       setIsWinner(isWinner);
       setGameStarted(false);
+      socket.emit('leaveRoom');
     });
 
     socket.on('penaltyReceived', ({ lines, fromPlayer }) => {
@@ -116,15 +123,21 @@ const GamePage = () => {
         currentApp.removeEventListener('keyup', handleKeyUp);
       }
     };
-  }, [roomName, playerName, gameStarted, navigate]);
+  }, [roomName, playerName]);
 
   const handleLeave = () => {
+    socket.emit('leaveRoom');
     navigate('/');
   };
 
   const handleStartGame = () => {
     socket.emit('startGame');
   };
+
+  // Keep a ref in sync with gameStarted state for event handlers
+  useEffect(() => {
+    gameStartedRef.current = gameStarted;
+  }, [gameStarted]);
 
   if (error) {
     return (
@@ -140,6 +153,8 @@ const GamePage = () => {
   }
 
   if (gameEnded) {
+    // inform server that this client is leaving the room when the end screen is shown
+    socket.emit('leaveRoom');
     return (
       <div className="game-page">
         <div className="content">
