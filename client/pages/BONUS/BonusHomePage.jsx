@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './HomePage.css';
+import '../HomePage.css';
 
 const SHAPES = [
     { shape: [[1,1,1,1]], color: 'cyan' },
@@ -16,6 +16,7 @@ const BonusHomePage = () => {
     const [roomName, setRoomName] = useState('');
     const [playerName, setPlayerName] = useState('');
     const navigate = useNavigate();
+    const [mode, setMode] = useState(null);
 
     const validateInput = (value) => value.replace(/[^a-zA-Z0-9]/g, '');
 
@@ -25,7 +26,11 @@ const BonusHomePage = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (roomName && playerName) {
-            navigate(`/${roomName}/${playerName}`);
+            if (mode === 'speed') {
+                navigate(`/bonus-speed/${roomName}/${playerName}`);
+            } else {
+                navigate(`/${roomName}/${playerName}`);
+            }
         }
     };
 
@@ -43,7 +48,7 @@ const BonusHomePage = () => {
     ), []);
 
     return (
-        <div className="home-page">
+        <div className="home-page bonus-theme">
             {pieces.map(p => (
                 <div
                     key={p.id}
@@ -71,8 +76,34 @@ const BonusHomePage = () => {
             <h1 className="title">Red Tetris — Bonus</h1>
             <form onSubmit={handleSubmit} className="home-form">
                 <div className="bonus-actions" role="group" aria-label="Bonus actions">
-                    <button type="button" className="bonus-action speed" onClick={() => alert('⚡ Speed game coming soon!')}>Speed game</button>
-                    <button type="button" className="bonus-action bricks" onClick={() => alert('🧱 New bricks coming soon!')}>New bricks</button>
+                    <button
+                        type="button"
+                        className={`bonus-action speed ${mode === 'speed' ? 'selected' : ''}`}
+                        onClick={() => setMode('speed')}
+                    >
+                        Speed game
+                    </button>
+                    <button
+                        type="button"
+                        className={`bonus-action bricks ${mode === 'bricks' ? 'selected' : ''}`}
+                        onClick={() => setMode('bricks')}
+                    >
+                        New bricks
+                    </button>
+                    <button
+                        type="button"
+                        className={`bonus-action reverse ${mode === 'reverse' ? 'selected' : ''}`}
+                        onClick={() => setMode('reverse')}
+                    >
+                        Reverse gravity
+                    </button>
+                    <button
+                        type="button"
+                        className={`bonus-action bomb ${mode === 'bomb' ? 'selected' : ''}`}
+                        onClick={() => setMode('bomb')}
+                    >
+                        Bombrick
+                    </button>
                 </div>
                 <input
                     type="text"
@@ -93,6 +124,14 @@ const BonusHomePage = () => {
 
             <p className="input-info">Only letters and numbers are allowed in room names and player names</p>
             <p className="footer">Have fun & stack those blocks!</p>
+            <button
+                type="button"
+                className="bonus-button"
+                onClick={() => navigate('/')}
+                aria-label="Mandatory"
+            >
+                Mandatory
+            </button>
         </div>
     );
 };

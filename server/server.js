@@ -26,8 +26,12 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 const publicPath = path.join(__dirname, '..', 'public');
 
-// Room management
-const rooms = new Map(); // roomName -> Room
+// Room management (keyed by mode:name to separate bonus vs mandatory)
+const rooms = new Map(); // `${mode}:${roomName}` -> Room
+
+function getRoomKey(roomName, mode = 'normal') {
+    return `${mode}:${roomName}`;
+}
 
 app.use(express.static(publicPath));
 
@@ -82,11 +86,14 @@ function handleGameTick(room) {
     // Move pieces down and give new pieces to players who need them individually
     room.getPlayers().forEach(player => {
         const grid = player.board.grid;
+        const now = Date.now();
+        const interval = room.speedMode ? (player.dropIntervalMs || room.gameSpeed) : room.gameSpeed;
         const canFall = canPlace(grid, player.currentPiece, 0, 1);
 
-        if (canFall) {
+        if (canFall && (!room.speedMode || now - (player.lastDropTime || 0) >= interval)) {
             player.currentPiece = movePiece(player.currentPiece, 0, 1);
-        } else {
+            if (room.speedMode) player.lastDropTime = now;
+        } else if (!canFall) {
             // Piece needs to lock
             const locked = lockPiece(grid, player.currentPiece);
             const { grid: cleared, linesCleared } = clearLines(locked);
@@ -167,6 +174,15 @@ function handleGameTick(room) {
             player.currentPiece = makePieceFromTetromino(newCurrentPiece);
             player.nextPiece = newNextPiece;
             player.needsNewPiece = false;
+            // Speed mode: per-player acceleration every 7 drops
+            if (room.speedMode) {
+                player.dropsSinceSpeedUp = (player.dropsSinceSpeedUp || 0) + 1;
+                if (player.dropsSinceSpeedUp % 7 === 0) {
+                    const prev = player.dropIntervalMs || room.gameSpeed;
+                    player.dropIntervalMs = Math.max(100, Math.floor(prev * 0.8));
+                    console.log(`Speed up for ${player.name}: ${prev}ms -> ${player.dropIntervalMs}ms after ${player.dropsSinceSpeedUp} drops`);
+                }
+            }
             
             // Advance this player's sequence index
             player.sequenceIndex += 1;
@@ -285,7 +301,7 @@ io.on('connection', (socket) => {
     let currentRoom = null;
     let currentPlayer = null;
 
-    socket.on('joinRoom', ({ roomName, playerName }) => {
+    socket.on('joinRoom', ({ roomName, playerName, mode = 'normal' }) => {
         try {
             console.log(`Player ${playerName} trying to join room ${roomName}`);
             
@@ -298,12 +314,15 @@ io.on('connection', (socket) => {
                 throw new ValidationError('Room name and player name must be 20 characters or less');
             }
             
-            // Get or create room
-            if (!rooms.has(roomName)) {
-                rooms.set(roomName, new Room(roomName));
+            // Get or create room (namespaced by mode)
+            const roomKey = getRoomKey(roomName, mode);
+            if (!rooms.has(roomKey)) {
+                const newRoom = new Room(roomName);
+                newRoom.mapKey = roomKey;
+                newRoom.roomMode = mode;
+                rooms.set(roomKey, newRoom);
             }
-            
-            const room = rooms.get(roomName);
+            const room = rooms.get(roomKey);
             
             // Check if player with this name is already in the room (reconnection)
             const existingPlayer = room.getPlayers().find(p => p.name === playerName);
@@ -336,7 +355,7 @@ io.on('connection', (socket) => {
                 
                 // Broadcast room update
                 broadcastRoomUpdate(room);
-                console.log(`Player ${playerName} reconnected to room ${roomName}`);
+            console.log(`Player ${playerName} reconnected to room ${roomName} (${mode})`);
                 return;
             }
             
@@ -371,7 +390,7 @@ io.on('connection', (socket) => {
             // Broadcast room update to all players
             broadcastRoomUpdate(room);
             
-            console.log(`Player ${playerName} joined room ${roomName}`);
+            console.log(`Player ${playerName} joined room ${roomName} (${mode})`);
         } catch (error) {
             console.error(`Error joining room: ${error.message}`);
             socket.emit('joinError', { 
@@ -478,6 +497,31 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('setSpeedMode', ({ roomName, enabled, mode = 'normal' }) => {
+        try {
+            if (!roomName) return;
+            const roomKey = getRoomKey(roomName, mode);
+            const room = rooms.get(roomKey);
+            if (!room) return;
+            // Only allow a player in the room to toggle
+            if (!currentPlayer || !currentRoom || currentRoom.mapKey !== roomKey) return;
+            room.speedMode = Boolean(enabled);
+            room.dropsSinceSpeedUp = 0;
+            // Initialize per-player timers when enabling
+            if (room.speedMode) {
+                const now = Date.now();
+                room.getPlayers().forEach(p => {
+                    p.dropIntervalMs = room.gameSpeed;
+                    p.lastDropTime = now;
+                    p.dropsSinceSpeedUp = 0;
+                });
+            }
+            console.log(`Speed mode for room ${roomName}: ${room.speedMode}`);
+        } catch (e) {
+            console.error('Failed to set speed mode', e);
+        }
+    });
+
     socket.on('leaveRoom', () => {
         if (!currentRoom || !currentPlayer) return;
         console.log(`Player ${currentPlayer.name} leaving room ${currentRoom.name}`);
@@ -498,7 +542,8 @@ io.on('connection', (socket) => {
         if (currentRoom && currentPlayer) {
             const shouldDeleteRoom = currentRoom.removePlayer(socket.id);
             if (shouldDeleteRoom) {
-                rooms.delete(currentRoom.name);
+                if (currentRoom.mapKey) rooms.delete(currentRoom.mapKey);
+                else rooms.delete(getRoomKey(currentRoom.name, currentRoom.roomMode || 'normal'));
                 console.log(`Room ${currentRoom.name} deleted`);
             } else {
                 broadcastRoomUpdate(currentRoom);

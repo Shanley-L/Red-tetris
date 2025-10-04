@@ -13,6 +13,8 @@ class Room {
         this.pieceSequence = []; // Shared piece sequence for all players
         this.currentPieceIndex = 0;
         this.gameSpeed = 1000; // ms between drops
+        this.speedMode = false; // bonus: accelerate over time
+        this.dropsSinceSpeedUp = 0; // count locked pieces
     }
 
     addPlayer(socketId, playerName) {
@@ -130,6 +132,7 @@ class Room {
         // Reset room sequence tracking
         this.pieceSequence = [];
         this.currentPieceIndex = 0;
+        this.dropsSinceSpeedUp = 0;
     }
 
     generatePieceSequence() {
@@ -196,6 +199,10 @@ class Room {
             
             player.currentPiece = this.makePieceFromTetromino(currentPiece);
             player.nextPiece = nextPiece;
+            // Initialize per-player speed mode timers to the room speed on start
+            player.dropIntervalMs = this.gameSpeed;
+            player.lastDropTime = Date.now();
+            player.dropsSinceSpeedUp = 0;
             
             // Send board update to this player
             if (player.socket) {

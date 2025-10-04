@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
-import Board from '../components/Board';
-import NextPiece from '../components/NextPiece';
-import './GamePage.css';
+import Board from '../../components/Board';
+import NextPiece from '../../components/NextPiece';
+import '../GamePage.css';
 
-// Socket will be instantiated when the page mounts, not at import time
-
-const GamePage = () => {
+const BonusGameSpeed = () => {
   const { roomName, playerName } = useParams();
   const navigate = useNavigate();
   const [board, setBoard] = useState([]);
@@ -24,7 +22,6 @@ const GamePage = () => {
   const [penaltyNotification, setPenaltyNotification] = useState(null);
   const appRef = useRef(null);
   const gameStartedRef = useRef(false);
-
   const joinedRef = useRef(false);
   const socketRef = useRef(null);
 
@@ -33,8 +30,9 @@ const GamePage = () => {
       socketRef.current = io();
     }
     const socket = socketRef.current;
+
     if (!joinedRef.current) {
-      socket.emit('joinRoom', { roomName, playerName, mode: 'normal' });
+      socket.emit('joinRoom', { roomName, playerName, mode: 'bonus' });
       joinedRef.current = true;
     }
 
@@ -82,7 +80,6 @@ const GamePage = () => {
 
     socket.on('moveError', ({ message, code }) => {
       console.error(`Move error: ${message} (${code})`);
-      // Could show a toast notification here
     });
 
     socket.on('gameOver', () => {
@@ -102,16 +99,8 @@ const GamePage = () => {
     });
 
     socket.on('penaltyReceived', ({ lines, fromPlayer }) => {
-      setPenaltyNotification({
-        lines,
-        fromPlayer,
-        timestamp: Date.now()
-      });
-      
-      // Auto-hide notification after 3 seconds
-      setTimeout(() => {
-        setPenaltyNotification(null);
-      }, 3000);
+      setPenaltyNotification({ lines, fromPlayer, timestamp: Date.now() });
+      setTimeout(() => setPenaltyNotification(null), 3000);
     });
 
     return () => {
@@ -122,8 +111,6 @@ const GamePage = () => {
       socket.off('gameOver');
       socket.off('gameEnd');
       socket.off('penaltyReceived');
-      // Defer closing the connection; server may be down after game ends
-      // Leave listeners cleaned.
       if (currentApp) {
         currentApp.removeEventListener('keydown', handleKeyDown);
         currentApp.removeEventListener('keyup', handleKeyUp);
@@ -133,14 +120,15 @@ const GamePage = () => {
 
   const handleLeave = () => {
     socketRef.current?.emit('leaveRoom');
-    navigate('/');
+    navigate('/bonus');
   };
 
   const handleStartGame = () => {
     socketRef.current?.emit('startGame');
+    // Inform server this room should be in speed mode for bonus namespace
+    socketRef.current?.emit('setSpeedMode', { roomName, enabled: true, mode: 'bonus' });
   };
 
-  // Keep a ref in sync with gameStarted state for event handlers
   useEffect(() => {
     gameStartedRef.current = gameStarted;
   }, [gameStarted]);
@@ -159,7 +147,6 @@ const GamePage = () => {
   }
 
   if (gameEnded) {
-    // inform server that this client is leaving the room when the end screen is shown
     socketRef.current?.emit('leaveRoom');
     return (
       <div className="game-page">
@@ -192,11 +179,10 @@ const GamePage = () => {
     <div className="game-page" ref={appRef} tabIndex="0">
       <div className="content">
         <header className="game-header">
-          <div className="brand">Red Tetris</div>
+          <div className="brand">Red Tetris — Speed</div>
           <div className="meta">Room: {roomName} · Player: {playerName}</div>
           {isHost && <div className="host-indicator">HOST</div>}
         </header>
-        
         <div className="room-info">
           <div className="players-list">
             <h3>Players ({players.length}/2)</h3>
@@ -206,20 +192,12 @@ const GamePage = () => {
               </div>
             ))}
           </div>
-          
           {!gameStarted && isHost && (
-            <button className="start-game-button" onClick={handleStartGame}>
-              Start Game
-            </button>
+            <button className="start-game-button" onClick={handleStartGame}>Start Game</button>
           )}
-          
-          {gameStarted && (
-            <div className="game-status">Game in Progress</div>
-          )}
+          {gameStarted && <div className="game-status">Game in Progress</div>}
         </div>
-
         <button className="leave-button" onClick={handleLeave}>Leave Room</button>
-        
         <div className="game-layout">
           <aside className="side-left">
             <div className="card">
@@ -233,11 +211,7 @@ const GamePage = () => {
                     <div className="player-name">{spectrum.name}</div>
                     <div className="spectrum-bars">
                       {spectrum.spectrum.map((height, i) => (
-                        <div 
-                          key={i} 
-                          className="spectrum-bar" 
-                          style={{ height: `${height * 2}px` }}
-                        />
+                        <div key={i} className="spectrum-bar" style={{ height: `${height * 2}px` }} />
                       ))}
                     </div>
                   </div>
@@ -245,7 +219,6 @@ const GamePage = () => {
               </div>
             )}
           </aside>
-          
           <div className="board-wrapper">
             <Board board={board} />
             {penaltyNotification && (
@@ -260,7 +233,6 @@ const GamePage = () => {
               </div>
             )}
           </div>
-          
           <aside className="side-right">
             <div className="card controls">
               <h3>Controls</h3>
@@ -278,4 +250,6 @@ const GamePage = () => {
   );
 };
 
-export default GamePage;
+export default BonusGameSpeed;
+
+
