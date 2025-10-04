@@ -22,6 +22,7 @@ const {
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+const { updateScore, top } = require('./scoreStore');
 
 const PORT = process.env.PORT || 3000;
 const publicPath = path.join(__dirname, '..', 'public');
@@ -34,6 +35,17 @@ function getRoomKey(roomName, mode = 'normal') {
 }
 
 app.use(express.static(publicPath));
+
+// Simple endpoint to fetch top scores (must be declared before catch-all)
+app.get('/api/scoreboard', (req, res) => {
+    try {
+        const n = Math.max(1, Math.min(100, Number(req.query.n) || 20));
+        res.set('Cache-Control', 'no-store');
+        res.json(top(n));
+    } catch (e) {
+        res.status(500).json({ error: 'failed' });
+    }
+});
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(publicPath, 'index.html'));
@@ -64,6 +76,18 @@ function checkGameEnd(room) {
                     isWinner: player.socketId === winner.socketId 
                 });
             });
+            // Persist winner score for bonus rooms
+            if (room.roomMode === 'bonus') {
+                try {
+                    updateScore(winner.name, winner.score || 0, true);
+                    const snapshot = top(5);
+                    console.log('[SCOREBOARD] Winner persisted:', winner.name, 'score=', winner.score || 0);
+                    console.log('[SCOREBOARD] Top 5 now:', JSON.stringify(snapshot));
+                    io.emit('scoreboardUpdated', top(10));
+                } catch (e) {
+                    console.error('[SCOREBOARD] Failed to persist winner score:', e?.message);
+                }
+            }
             
             // Stop the game
             room.stopGame();
@@ -85,6 +109,7 @@ function handleGameTick(room) {
     
     // Move pieces down and give new pieces to players who need them individually
     room.getPlayers().forEach(player => {
+        try {
         const grid = player.board.grid;
         const now = Date.now();
         const interval = room.speedMode ? (player.dropIntervalMs || room.gameSpeed) : room.gameSpeed;
@@ -98,6 +123,11 @@ function handleGameTick(room) {
             const locked = lockPiece(grid, player.currentPiece);
             const { grid: cleared, linesCleared } = clearLines(locked);
             player.board.grid = cleared;
+            // Bonus scoring only for bonus rooms
+            if (room.roomMode === 'bonus' && linesCleared > 0) {
+                const add = linesCleared === 1 ? 100 : linesCleared === 2 ? 300 : linesCleared === 3 ? 500 : 800;
+                player.score = (player.score || 0) + add;
+            }
             
             // Distribute penalty lines to other players if lines were cleared
             if (linesCleared > 0) {
@@ -110,6 +140,17 @@ function handleGameTick(room) {
                         if (otherPlayer.socketId !== player.socketId) {
                             console.log(`Adding ${penaltyLines} penalty lines to ${otherPlayer.name}`);
                             otherPlayer.board.grid = addPenaltyLines(otherPlayer.board.grid, penaltyLines);
+                            // Adjust current falling piece upward to compensate for garbage push
+                            if (otherPlayer.currentPiece) {
+                                let adjusted = { ...otherPlayer.currentPiece, y: otherPlayer.currentPiece.y - penaltyLines };
+                                // Try moving further up if still colliding, up to a small safety margin
+                                while (!canPlace(otherPlayer.board.grid, adjusted, 0, 0) && adjusted.y > -6) {
+                                    adjusted = { ...adjusted, y: adjusted.y - 1 };
+                                }
+                                if (canPlace(otherPlayer.board.grid, adjusted, 0, 0)) {
+                                    otherPlayer.currentPiece = adjusted;
+                                }
+                            }
                             
                             // Send penalty notification to the player
                             otherPlayer.socket.emit('penaltyReceived', {
@@ -120,6 +161,18 @@ function handleGameTick(room) {
                             // Check if penalty lines caused game over
                             if (!canPlace(otherPlayer.board.grid, otherPlayer.currentPiece, 0, 0)) {
                                 console.log(`Game Over for ${otherPlayer.name} due to penalty lines`);
+                                // Persist loser score in bonus rooms
+                                if (room.roomMode === 'bonus') {
+                                    try {
+                                        updateScore(otherPlayer.name, otherPlayer.score || 0, false);
+                                        const snapshot = top(5);
+                                        console.log('[SCOREBOARD] Loser persisted:', otherPlayer.name, 'score=', otherPlayer.score || 0);
+                                        console.log('[SCOREBOARD] Top 5 now:', JSON.stringify(snapshot));
+                                        io.emit('scoreboardUpdated', top(10));
+                                    } catch (e) {
+                                        console.error('[SCOREBOARD] Failed to persist loser score:', e?.message);
+                                    }
+                                }
                                 otherPlayer.socket.emit('gameOver');
                                 room.removePlayer(otherPlayer.socketId);
                                 // Reflect host reassignment and player list immediately
@@ -194,6 +247,18 @@ function handleGameTick(room) {
             // Check for game over after assigning new piece
             if (!canPlace(player.board.grid, player.currentPiece, 0, 0)) {
                 console.log(`Game Over for ${player.name}`);
+                // Persist loser score in bonus rooms
+                if (room.roomMode === 'bonus') {
+                    try {
+                        updateScore(player.name, player.score || 0, false);
+                        const snapshot = top(5);
+                        console.log('[SCOREBOARD] Loser persisted:', player.name, 'score=', player.score || 0);
+                        console.log('[SCOREBOARD] Top 5 now:', JSON.stringify(snapshot));
+                        io.emit('scoreboardUpdated', top(10));
+                    } catch (e) {
+                        console.error('[SCOREBOARD] Failed to persist loser score:', e?.message);
+                    }
+                }
                 player.socket.emit('gameOver');
                 // Remove player from room
                 room.removePlayer(player.socketId);
@@ -207,14 +272,23 @@ function handleGameTick(room) {
                 return;
             }
         }
+        } catch (err) {
+            console.error('Error during game tick for player', player?.name, err?.message);
+        }
     });
     
     // Send board updates to all players
     room.getPlayers().forEach(player => {
-        const boardWithPiece = renderWithPiece(player.board.grid, player.currentPiece);
-        const nextPieceSerialized = serializePiece(makePieceFromTetromino(player.nextPiece));
+        const boardWithPiece = player.currentPiece
+            ? renderWithPiece(player.board.grid, player.currentPiece)
+            : player.board.grid;
+        const nextPieceSerialized = player.nextPiece
+            ? serializePiece(makePieceFromTetromino(player.nextPiece))
+            : null;
         
-        console.log(`Sending to ${player.name}: current=${player.currentPiece.type}, next=${player.nextPiece.type}`);
+        const curType = player.currentPiece ? player.currentPiece.type : 'none';
+        const nextType = player.nextPiece ? player.nextPiece.type : 'none';
+        console.log(`Sending to ${player.name}: current=${curType}, next=${nextType}`);
         console.log(`Serialized next piece:`, nextPieceSerialized);
         
         player.socket.emit('updateBoard', {
@@ -232,7 +306,7 @@ function handleGameTick(room) {
         }));
         
         player.socket.emit('roomUpdate', {
-            players: room.getPlayers().map(p => ({ name: p.name, isHost: p.socketId === room.host })),
+            players: room.getPlayers().map(p => ({ name: p.name, isHost: p.socketId === room.host, score: room.roomMode === 'bonus' ? (p.score || 0) : undefined })),
             spectrums: spectrums,
             gameStarted: room.gameStarted
         });
@@ -245,10 +319,12 @@ function handleSoftDropTick(player) {
 
     if (canFall) {
         player.currentPiece = movePiece(player.currentPiece, 0, 1);
-        const boardWithPiece = renderWithPiece(player.board.grid, player.currentPiece);
+        const boardWithPiece = player.currentPiece
+            ? renderWithPiece(player.board.grid, player.currentPiece)
+            : player.board.grid;
         player.socket.emit('updateBoard', {
             board: boardWithPiece,
-            nextPiece: serializePiece(makePieceFromTetromino(player.nextPiece))
+            nextPiece: player.nextPiece ? serializePiece(makePieceFromTetromino(player.nextPiece)) : null
         });
     } else {
         // Piece can't fall anymore, stop soft drop

@@ -127,6 +127,7 @@ class Room {
             // Reset per-player sequence tracking
             player.pieceSequence = [];
             player.sequenceIndex = 0;
+            player.score = 0;
         });
 
         // Reset room sequence tracking
@@ -203,6 +204,7 @@ class Room {
             player.dropIntervalMs = this.gameSpeed;
             player.lastDropTime = Date.now();
             player.dropsSinceSpeedUp = 0;
+            player.score = 0;
             
             // Send board update to this player
             if (player.socket) {

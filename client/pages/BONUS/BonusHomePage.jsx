@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../HomePage.css';
+import io from 'socket.io-client';
 
 const SHAPES = [
     { shape: [[1,1,1,1]], color: 'cyan' },
@@ -11,6 +12,63 @@ const SHAPES = [
     { shape: [[0,1,1],[1,1,0]], color: 'green' },
     { shape: [[1,1,0],[0,1,1]], color: 'red' },
 ];
+
+// Move Scoreboard outside to prevent re-creation on every render
+const Scoreboard = () => {
+    const [rows, setRows] = useState([]);
+    const socketRef = useRef(null);
+    
+    useEffect(() => {
+        let isMounted = true;
+        const fetchScores = () => {
+            fetch('/api/scoreboard?n=10')
+                .then(r => r.json())
+                .then(data => { if (isMounted) setRows(Array.isArray(data) ? data : []); })
+                .catch(() => { if (isMounted) setRows([]); });
+        };
+        fetchScores();
+        const intervalId = setInterval(fetchScores, 5000);
+        
+        // Only create socket once
+        if (!socketRef.current) {
+            socketRef.current = io();
+            console.log('[SCOREBOARD] Socket created, listening for scoreboardUpdated');
+        }
+        const socket = socketRef.current;
+        
+        socket.on('connect', () => console.log('[SCOREBOARD] Socket connected'));
+        socket.on('disconnect', () => console.log('[SCOREBOARD] Socket disconnected'));
+        const onUpdate = (data) => {
+            console.log('[SCOREBOARD] update received:', data);
+            if (isMounted && Array.isArray(data)) {
+                setRows(data);
+                // double-check file persistence shortly after
+                setTimeout(fetchScores, 300);
+            }
+        };
+        socket.on('scoreboardUpdated', onUpdate);
+        window.addEventListener('focus', fetchScores);
+        return () => {
+            isMounted = false;
+            clearInterval(intervalId);
+            socket.off('scoreboardUpdated', onUpdate);
+            // Don't close socket here - let it persist for the component lifetime
+            window.removeEventListener('focus', fetchScores);
+        };
+    }, []);
+    
+    return (
+        <div className="scoreboard-list">
+            {rows.map((r, i) => (
+                <div key={r.name + i} className="score-row">
+                    <span className="score-name">{r.name}</span>
+                    <span className="score-points">{r.totalScore} pts</span>
+                </div>
+            ))}
+            {rows.length === 0 && <div className="score-empty">No scores yet</div>}
+        </div>
+    );
+};
 
 const BonusHomePage = () => {
     const [roomName, setRoomName] = useState('');
@@ -46,6 +104,7 @@ const BonusHomePage = () => {
             };
         })
     ), []);
+
 
     return (
         <div className="home-page bonus-theme">
@@ -132,6 +191,10 @@ const BonusHomePage = () => {
             >
                 Mandatory
             </button>
+            <div className="scoreboard card">
+                <h3>Top Scores (Bonus)</h3>
+                <Scoreboard />
+            </div>
         </div>
     );
 };

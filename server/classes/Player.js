@@ -14,6 +14,8 @@ class Player {
         this.dropIntervalMs = 1000;
         this.lastDropTime = Date.now();
         this.dropsSinceSpeedUp = 0;
+        // Scoring (used for bonus mode)
+        this.score = 0;
     }
 }
 

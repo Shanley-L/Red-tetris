@@ -1,0 +1,74 @@
+{
+  "win": {
+    "name": "win",
+    "totalScore": 1500,
+    "wins": 2,
+    "losses": 0,
+    "games": 2,
+    "lastUpdated": 1759571373504
+  },
+  "w": {
+    "name": "w",
+    "totalScore": 0,
+    "wins": 3,
+    "losses": 0,
+    "games": 3,
+    "lastUpdated": 1759570710631
+  },
+  "s": {
+    "name": "s",
+    "totalScore": 400,
+    "wins": 2,
+    "losses": 1,
+    "games": 3,
+    "lastUpdated": 1759571859920
+  },
+  "a": {
+    "name": "a",
+    "totalScore": 500,
+    "wins": 2,
+    "losses": 1,
+    "games": 3,
+    "lastUpdated": 1759571373499
+  },
+  "q": {
+    "name": "q",
+    "totalScore": 0,
+    "wins": 0,
+    "losses": 1,
+    "games": 1,
+    "lastUpdated": 1759570874678
+  },
+  "sd": {
+    "name": "sd",
+    "totalScore": 100,
+    "wins": 1,
+    "losses": 2,
+    "games": 3,
+    "lastUpdated": 1759571604733
+  },
+  "as": {
+    "name": "as",
+    "totalScore": 100,
+    "wins": 1,
+    "losses": 0,
+    "games": 1,
+    "lastUpdated": 1759571158020
+  },
+  "df": {
+    "name": "df",
+    "totalScore": 0,
+    "wins": 0,
+    "losses": 1,
+    "games": 1,
+    "lastUpdated": 1759571604728
+  },
+  "ssd": {
+    "name": "ssd",
+    "totalScore": 0,
+    "wins": 0,
+    "losses": 1,
+    "games": 1,
+    "lastUpdated": 1759571859915
+  }
+}

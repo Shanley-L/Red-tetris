@@ -12,6 +12,7 @@ const BonusGameSpeed = () => {
   const [nextPiece, setNextPiece] = useState(null);
   const [players, setPlayers] = useState([]);
   const [spectrums, setSpectrums] = useState([]);
+  const [scores, setScores] = useState({});
   const [gameStarted, setGameStarted] = useState(false);
   const [isHost, setIsHost] = useState(false);
   const [error, setError] = useState(null);
@@ -31,7 +32,7 @@ const BonusGameSpeed = () => {
     }
     const socket = socketRef.current;
 
-    if (!joinedRef.current) {
+    if (!joinedRef.current && !gameStarted) {
       socket.emit('joinRoom', { roomName, playerName, mode: 'bonus' });
       joinedRef.current = true;
     }
@@ -69,6 +70,9 @@ const BonusGameSpeed = () => {
 
     socket.on('roomUpdate', ({ players, spectrums, gameStarted }) => {
       setPlayers(players);
+      const map = {};
+      players.forEach(p => { if (typeof p.score === 'number') map[p.name] = p.score; });
+      setScores(map);
       setSpectrums(spectrums);
       setGameStarted(gameStarted);
       setIsHost(players.find(p => p.name === playerName)?.isHost || false);
@@ -103,6 +107,14 @@ const BonusGameSpeed = () => {
       setTimeout(() => setPenaltyNotification(null), 3000);
     });
 
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected during bonus game');
+      // Don't try to reconnect if game is in progress
+      if (gameStarted) {
+        console.log('Bonus game in progress, not attempting reconnection');
+      }
+    });
+
     return () => {
       socket.off('updateBoard');
       socket.off('roomUpdate');
@@ -119,7 +131,7 @@ const BonusGameSpeed = () => {
   }, [roomName, playerName]);
 
   const handleLeave = () => {
-    socketRef.current?.emit('leaveRoom');
+    setTimeout(() => socketRef.current?.emit('leaveRoom'), 0);
     navigate('/bonus');
   };
 
@@ -147,7 +159,7 @@ const BonusGameSpeed = () => {
   }
 
   if (gameEnded) {
-    socketRef.current?.emit('leaveRoom');
+    setTimeout(() => socketRef.current?.emit('leaveRoom'), 0);
     return (
       <div className="game-page">
         <div className="content">
@@ -188,7 +200,7 @@ const BonusGameSpeed = () => {
             <h3>Players ({players.length}/2)</h3>
             {players.map(player => (
               <div key={player.name} className={`player ${player.isHost ? 'host' : ''}`}>
-                {player.name} {player.isHost && '(Host)'}
+                {player.name} {player.isHost && '(Host)'} — {scores[player.name] ?? 0}
               </div>
             ))}
           </div>

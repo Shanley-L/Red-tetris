@@ -1,4 +1,24 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+const Scoreboard = () => {
+    const [rows, setRows] = useState([]);
+    useEffect(() => {
+        fetch('/api/scoreboard?n=10')
+            .then(r => r.json())
+            .then(setRows)
+            .catch(() => setRows([]));
+    }, []);
+    return (
+        <div className="scoreboard-list">
+            {rows.map((r, i) => (
+                <div key={r.name + i} className="score-row">
+                    <span className="score-name">{r.name}</span>
+                    <span className="score-points">{r.totalScore} pts</span>
+                </div>
+            ))}
+            {rows.length === 0 && <div className="score-empty">No scores yet</div>}
+        </div>
+    );
+};
 import { useNavigate } from 'react-router-dom';
 import './HomePage.css';
 

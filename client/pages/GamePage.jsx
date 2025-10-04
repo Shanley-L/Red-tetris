@@ -33,7 +33,7 @@ const GamePage = () => {
       socketRef.current = io();
     }
     const socket = socketRef.current;
-    if (!joinedRef.current) {
+    if (!joinedRef.current && !gameStarted) {
       socket.emit('joinRoom', { roomName, playerName, mode: 'normal' });
       joinedRef.current = true;
     }
@@ -112,6 +112,14 @@ const GamePage = () => {
       setTimeout(() => {
         setPenaltyNotification(null);
       }, 3000);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected during game');
+      // Don't try to reconnect if game is in progress
+      if (gameStarted) {
+        console.log('Game in progress, not attempting reconnection');
+      }
     });
 
     return () => {
