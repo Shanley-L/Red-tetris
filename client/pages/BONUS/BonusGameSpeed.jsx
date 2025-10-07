@@ -5,6 +5,7 @@ import Board from '../../components/Board';
 import NextPiece from '../../components/NextPiece';
 import '../GamePage.css';
 
+
 const BonusGameSpeed = () => {
   const { roomName, playerName } = useParams();
   const navigate = useNavigate();

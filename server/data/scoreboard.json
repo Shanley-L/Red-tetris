@@ -17,19 +17,19 @@
   },
   "s": {
     "name": "s",
-    "totalScore": 400,
-    "wins": 2,
-    "losses": 1,
-    "games": 3,
-    "lastUpdated": 1759571859920
+    "totalScore": 1100,
+    "wins": 3,
+    "losses": 3,
+    "games": 6,
+    "lastUpdated": 1759824252483
   },
   "a": {
     "name": "a",
-    "totalScore": 500,
-    "wins": 2,
-    "losses": 1,
-    "games": 3,
-    "lastUpdated": 1759571373499
+    "totalScore": 2800,
+    "wins": 4,
+    "losses": 2,
+    "games": 6,
+    "lastUpdated": 1759824252469
   },
   "q": {
     "name": "q",
@@ -42,18 +42,18 @@
   "sd": {
     "name": "sd",
     "totalScore": 100,
-    "wins": 1,
+    "wins": 2,
     "losses": 2,
-    "games": 3,
-    "lastUpdated": 1759571604733
+    "games": 4,
+    "lastUpdated": 1759822335607
   },
   "as": {
     "name": "as",
     "totalScore": 100,
     "wins": 1,
-    "losses": 0,
-    "games": 1,
-    "lastUpdated": 1759571158020
+    "losses": 1,
+    "games": 2,
+    "lastUpdated": 1759822335605
   },
   "df": {
     "name": "df",
@@ -70,5 +70,37 @@
     "losses": 1,
     "games": 1,
     "lastUpdated": 1759571859915
+  },
+  "fdsfs": {
+    "name": "fdsfs",
+    "totalScore": 0,
+    "wins": 0,
+    "losses": 1,
+    "games": 1,
+    "lastUpdated": 1759821046745
+  },
+  "zxc": {
+    "name": "zxc",
+    "totalScore": 1500,
+    "wins": 1,
+    "losses": 0,
+    "games": 1,
+    "lastUpdated": 1759821046754
+  },
+  "z": {
+    "name": "z",
+    "totalScore": 0,
+    "wins": 0,
+    "losses": 1,
+    "games": 1,
+    "lastUpdated": 1759823995265
+  },
+  "x": {
+    "name": "x",
+    "totalScore": 400,
+    "wins": 1,
+    "losses": 0,
+    "games": 1,
+    "lastUpdated": 1759823995280
   }
 }

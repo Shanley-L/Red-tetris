@@ -4,6 +4,7 @@ function cloneGrid(grid) {
 }
 
 function canPlace(grid, piece, offsetX = 0, offsetY = 0) {
+    if (!piece) return false;
     const height = grid.length;
     const width = grid[0]?.length || 0;
 
@@ -95,10 +96,12 @@ function rotatePieceWithKicks(grid, piece, direction) {
 }
 
 function movePiece(piece, dx, dy) {
+    if (!piece) return null;
     return { ...piece, x: piece.x + dx, y: piece.y + dy };
 }
 
 function lockPiece(grid, piece) {
+    if (!piece) return grid;
     const newGrid = cloneGrid(grid);
     for (let y = 0; y < piece.shape.length; y++) {
         for (let x = 0; x < piece.shape[y].length; x++) {
@@ -162,6 +165,7 @@ function addPenaltyLines(grid, numLines) {
 }
 
 function renderWithPiece(grid, piece) {
+    if (!piece) return grid;
     const merged = cloneGrid(grid);
     for (let y = 0; y < piece.shape.length; y++) {
         for (let x = 0; x < piece.shape[y].length; x++) {

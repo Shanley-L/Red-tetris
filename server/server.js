@@ -22,7 +22,7 @@ const {
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-const { updateScore, top } = require('./scoreStore');
+const { updateScore, getTopScores, addSpeedGameScore, getTopSpeedGameScores } = require('./database');
 
 const PORT = process.env.PORT || 3000;
 const publicPath = path.join(__dirname, '..', 'public');
@@ -37,12 +37,40 @@ function getRoomKey(roomName, mode = 'normal') {
 app.use(express.static(publicPath));
 
 // Simple endpoint to fetch top scores (must be declared before catch-all)
-app.get('/api/scoreboard', (req, res) => {
+app.get('/api/scoreboard', async (req, res) => {
     try {
         const n = Math.max(1, Math.min(100, Number(req.query.n) || 20));
         res.set('Cache-Control', 'no-store');
-        res.json(top(n));
+        const scores = await getTopScores(n);
+        res.json(scores);
     } catch (e) {
+        console.error('Error fetching scoreboard:', e);
+        res.status(500).json({ error: 'failed' });
+    }
+});
+
+// Endpoint to fetch top speed game scores
+app.get('/api/speed-scores', async (req, res) => {
+    try {
+        const n = Math.max(1, Math.min(10, Number(req.query.n) || 3));
+        res.set('Cache-Control', 'no-store');
+        const scores = await getTopSpeedGameScores(n);
+        res.json(scores);
+    } catch (e) {
+        console.error('Error fetching speed game scores:', e);
+        res.status(500).json({ error: 'failed' });
+    }
+});
+
+// Test endpoint to manually trigger speed scores broadcast
+app.post('/api/test-speed-broadcast', async (req, res) => {
+    try {
+        const scores = await getTopSpeedGameScores(3);
+        console.log('[TEST] Manually broadcasting speed scores:', scores);
+        io.emit('speedScoresUpdated', scores);
+        res.json({ success: true, scores });
+    } catch (e) {
+        console.error('Error in test broadcast:', e);
         res.status(500).json({ error: 'failed' });
     }
 });
@@ -52,14 +80,16 @@ app.get('*', (req, res) => {
 });
 
 function serializePiece(piece) {
+    if (!piece) return null;
     return { shape: piece.shape, color: piece.color };
 }
 
 function makePieceFromTetromino(t) {
+    if (!t) return null;
     return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
 }
 
-function checkGameEnd(room) {
+async function checkGameEnd(room) {
     const activePlayers = room.getPlayers();
     if (activePlayers.length <= 1) {
         if (activePlayers.length === 1) {
@@ -79,13 +109,33 @@ function checkGameEnd(room) {
             // Persist winner score for bonus rooms
             if (room.roomMode === 'bonus') {
                 try {
-                    updateScore(winner.name, winner.score || 0, true);
-                    const snapshot = top(5);
+                    await updateScore(winner.name, winner.score || 0, true);
+                    const snapshot = await getTopScores(5);
                     console.log('[SCOREBOARD] Winner persisted:', winner.name, 'score=', winner.score || 0);
                     console.log('[SCOREBOARD] Top 5 now:', JSON.stringify(snapshot));
-                    io.emit('scoreboardUpdated', top(10));
+                    // Emit scoreboard update immediately
+                    const topScores = await getTopScores(10);
+                    io.emit('scoreboardUpdated', topScores);
+                    // Also emit a specific bonus scoreboard update
+                    io.emit('bonusScoreboardUpdated', topScores);
                 } catch (e) {
                     console.error('[SCOREBOARD] Failed to persist winner score:', e?.message);
+                }
+            }
+            
+            // Persist speed game score if this is a speed game
+            if (room.speedMode) {
+                try {
+                    await addSpeedGameScore(winner.name, winner.score || 0);
+                    const speedScores = await getTopSpeedGameScores(3);
+                    console.log('[SPEED SCORES] Winner persisted:', winner.name, 'score=', winner.score || 0);
+                    console.log('[SPEED SCORES] Top 3 now:', JSON.stringify(speedScores));
+                    // Emit speed game scoreboard update
+                    console.log('[SPEED SCORES] Broadcasting speedScoresUpdated to all clients...');
+                    io.emit('speedScoresUpdated', speedScores);
+                    console.log('[SPEED SCORES] Broadcast sent successfully');
+                } catch (e) {
+                    console.error('[SPEED SCORES] Failed to persist winner score:', e?.message);
                 }
             }
             
@@ -104,12 +154,17 @@ function checkGameEnd(room) {
     return false;
 }
 
-function handleGameTick(room) {
-    if (!room.gameStarted) return;
+async function handleGameTick(room) {
+    if (!room || !room.gameStarted) return;
     
     // Move pieces down and give new pieces to players who need them individually
-    room.getPlayers().forEach(player => {
+    for (const player of room.getPlayers()) {
         try {
+        // Skip players without current piece (game ended)
+        if (!player.currentPiece) {
+            return;
+        }
+        
         const grid = player.board.grid;
         const now = Date.now();
         const interval = room.speedMode ? (player.dropIntervalMs || room.gameSpeed) : room.gameSpeed;
@@ -117,7 +172,16 @@ function handleGameTick(room) {
 
         if (canFall && (!room.speedMode || now - (player.lastDropTime || 0) >= interval)) {
             player.currentPiece = movePiece(player.currentPiece, 0, 1);
-            if (room.speedMode) player.lastDropTime = now;
+            if (room.speedMode) {
+                player.lastDropTime = now;
+                // Speed mode: per-player acceleration every 5 gravity drops
+                player.dropsSinceSpeedUp = (player.dropsSinceSpeedUp || 0) + 1;
+                if (player.dropsSinceSpeedUp % 5 === 0) {
+                    const prev = player.dropIntervalMs || room.gameSpeed;
+                    player.dropIntervalMs = Math.max(50, Math.floor(prev * 0.75));
+                    console.log(`Speed up for ${player.name}: ${prev}ms -> ${player.dropIntervalMs}ms after ${player.dropsSinceSpeedUp} gravity drops`);
+                }
+            }
         } else if (!canFall) {
             // Piece needs to lock
             const locked = lockPiece(grid, player.currentPiece);
@@ -136,7 +200,7 @@ function handleGameTick(room) {
                     console.log(`\n=== PENALTY LINE DISTRIBUTION ===`);
                     console.log(`Player ${player.name} cleared ${linesCleared} lines, sending ${penaltyLines} penalty lines to opponents`);
                     
-                    room.getPlayers().forEach(otherPlayer => {
+                    for (const otherPlayer of room.getPlayers()) {
                         if (otherPlayer.socketId !== player.socketId) {
                             console.log(`Adding ${penaltyLines} penalty lines to ${otherPlayer.name}`);
                             otherPlayer.board.grid = addPenaltyLines(otherPlayer.board.grid, penaltyLines);
@@ -164,11 +228,12 @@ function handleGameTick(room) {
                                 // Persist loser score in bonus rooms
                                 if (room.roomMode === 'bonus') {
                                     try {
-                                        updateScore(otherPlayer.name, otherPlayer.score || 0, false);
-                                        const snapshot = top(5);
+                                        await updateScore(otherPlayer.name, otherPlayer.score || 0, false);
+                                        const snapshot = await getTopScores(5);
                                         console.log('[SCOREBOARD] Loser persisted:', otherPlayer.name, 'score=', otherPlayer.score || 0);
                                         console.log('[SCOREBOARD] Top 5 now:', JSON.stringify(snapshot));
-                                        io.emit('scoreboardUpdated', top(10));
+                                        const topScores = await getTopScores(10);
+                                        io.emit('scoreboardUpdated', topScores);
                                     } catch (e) {
                                         console.error('[SCOREBOARD] Failed to persist loser score:', e?.message);
                                     }
@@ -179,12 +244,12 @@ function handleGameTick(room) {
                                 broadcastRoomUpdate(room);
                                 
                                 // Check if game should end (only one player left)
-                                if (checkGameEnd(room)) {
+                                if (await checkGameEnd(room)) {
                                     return; // Game ended, stop processing
                                 }
                             }
                         }
-                    });
+                    }
                     console.log(`=== END PENALTY LINE DISTRIBUTION ===\n`);
                 }
             }
@@ -224,18 +289,9 @@ function handleGameTick(room) {
             console.log(`Player ${player.name} sequence index: ${player.sequenceIndex}`);
             console.log(`New current piece: ${newCurrentPiece.type}, new next piece: ${newNextPiece.type}`);
             
-            player.currentPiece = makePieceFromTetromino(newCurrentPiece);
+            player.currentPiece = newCurrentPiece ? makePieceFromTetromino(newCurrentPiece) : null;
             player.nextPiece = newNextPiece;
             player.needsNewPiece = false;
-            // Speed mode: per-player acceleration every 7 drops
-            if (room.speedMode) {
-                player.dropsSinceSpeedUp = (player.dropsSinceSpeedUp || 0) + 1;
-                if (player.dropsSinceSpeedUp % 7 === 0) {
-                    const prev = player.dropIntervalMs || room.gameSpeed;
-                    player.dropIntervalMs = Math.max(100, Math.floor(prev * 0.8));
-                    console.log(`Speed up for ${player.name}: ${prev}ms -> ${player.dropIntervalMs}ms after ${player.dropsSinceSpeedUp} drops`);
-                }
-            }
             
             // Advance this player's sequence index
             player.sequenceIndex += 1;
@@ -250,11 +306,15 @@ function handleGameTick(room) {
                 // Persist loser score in bonus rooms
                 if (room.roomMode === 'bonus') {
                     try {
-                        updateScore(player.name, player.score || 0, false);
-                        const snapshot = top(5);
+                        await updateScore(player.name, player.score || 0, false);
+                        const snapshot = await getTopScores(5);
                         console.log('[SCOREBOARD] Loser persisted:', player.name, 'score=', player.score || 0);
                         console.log('[SCOREBOARD] Top 5 now:', JSON.stringify(snapshot));
-                        io.emit('scoreboardUpdated', top(10));
+                        // Emit scoreboard update immediately
+                        const topScores = await getTopScores(10);
+                        io.emit('scoreboardUpdated', topScores);
+                        // Also emit a specific bonus scoreboard update
+                        io.emit('bonusScoreboardUpdated', topScores);
                     } catch (e) {
                         console.error('[SCOREBOARD] Failed to persist loser score:', e?.message);
                     }
@@ -266,7 +326,7 @@ function handleGameTick(room) {
                 broadcastRoomUpdate(room);
                 
                 // Check if game should end (only one player left)
-                if (checkGameEnd(room)) {
+                if (await checkGameEnd(room)) {
                     return; // Game ended, stop processing
                 }
                 return;
@@ -275,7 +335,7 @@ function handleGameTick(room) {
         } catch (err) {
             console.error('Error during game tick for player', player?.name, err?.message);
         }
-    });
+    }
     
     // Send board updates to all players
     room.getPlayers().forEach(player => {
@@ -419,7 +479,7 @@ io.on('connection', (socket) => {
                     const boardWithPiece = renderWithPiece(currentPlayer.board.grid, currentPlayer.currentPiece);
                     socket.emit('updateBoard', {
                         board: boardWithPiece,
-                        nextPiece: serializePiece(makePieceFromTetromino(currentPlayer.nextPiece))
+                        nextPiece: currentPlayer.nextPiece ? serializePiece(makePieceFromTetromino(currentPlayer.nextPiece)) : null
                     });
                 } else {
                     // No pieces yet, send empty board
@@ -484,8 +544,8 @@ io.on('connection', (socket) => {
             
             if (gameStarted) {
                 // Start game loop for the room
-                currentRoom.gameLoop = setInterval(() => {
-                    handleGameTick(currentRoom);
+                currentRoom.gameLoop = setInterval(async () => {
+                    await handleGameTick(currentRoom);
                 }, currentRoom.gameSpeed);
                 
                 broadcastRoomUpdate(currentRoom);
@@ -495,7 +555,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('move', ({ direction }) => {
+    socket.on('move', async ({ direction }) => {
         try {
             if (!currentRoom || !currentPlayer || !currentRoom.gameStarted) {
                 throw new PlayerError('Game not started or player not in room', 'GAME_NOT_STARTED');
@@ -518,7 +578,7 @@ io.on('connection', (socket) => {
                     falling = movePiece(falling, 0, 1);
                 }
                 currentPlayer.currentPiece = falling;
-                handleGameTick(currentRoom);
+                await handleGameTick(currentRoom);
                 return;
             }
 
@@ -603,7 +663,10 @@ io.on('connection', (socket) => {
         console.log(`Player ${currentPlayer.name} leaving room ${currentRoom.name}`);
         const shouldDeleteRoom = currentRoom.removePlayer(socket.id);
         if (shouldDeleteRoom) {
-            rooms.delete(currentRoom.name);
+            // Clean up the room properly before deleting
+            currentRoom.cleanup();
+            const roomKey = currentRoom.mapKey || getRoomKey(currentRoom.name, currentRoom.roomMode || 'normal');
+            rooms.delete(roomKey);
             console.log(`Room ${currentRoom.name} deleted`);
         } else {
             broadcastRoomUpdate(currentRoom);
@@ -618,8 +681,10 @@ io.on('connection', (socket) => {
         if (currentRoom && currentPlayer) {
             const shouldDeleteRoom = currentRoom.removePlayer(socket.id);
             if (shouldDeleteRoom) {
-                if (currentRoom.mapKey) rooms.delete(currentRoom.mapKey);
-                else rooms.delete(getRoomKey(currentRoom.name, currentRoom.roomMode || 'normal'));
+                // Clean up the room properly before deleting
+                currentRoom.cleanup();
+                const roomKey = currentRoom.mapKey || getRoomKey(currentRoom.name, currentRoom.roomMode || 'normal');
+                rooms.delete(roomKey);
                 console.log(`Room ${currentRoom.name} deleted`);
             } else {
                 broadcastRoomUpdate(currentRoom);

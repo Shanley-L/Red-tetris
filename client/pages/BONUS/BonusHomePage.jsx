@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../HomePage.css';
+import './BonusHomePage.css';
 import io from 'socket.io-client';
 
 const SHAPES = [
@@ -13,59 +14,76 @@ const SHAPES = [
     { shape: [[1,1,0],[0,1,1]], color: 'red' },
 ];
 
-// Move Scoreboard outside to prevent re-creation on every render
-const Scoreboard = () => {
-    const [rows, setRows] = useState([]);
+// Speed Game Scoreboard Component
+const SpeedScoreboard = () => {
+    const [scores, setScores] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const socketRef = useRef(null);
     
     useEffect(() => {
         let isMounted = true;
+        
         const fetchScores = () => {
-            fetch('/api/scoreboard?n=10')
+            setIsLoading(true);
+            fetch('/api/speed-scores?n=3')
                 .then(r => r.json())
-                .then(data => { if (isMounted) setRows(Array.isArray(data) ? data : []); })
-                .catch(() => { if (isMounted) setRows([]); });
+                .then(data => { 
+                    if (isMounted) {
+                        setScores(Array.isArray(data) ? data : []);
+                        setIsLoading(false);
+                    }
+                })
+                .catch((error) => { 
+                    if (isMounted) {
+                        setScores([]);
+                        setIsLoading(false);
+                    }
+                });
         };
+        
         fetchScores();
-        const intervalId = setInterval(fetchScores, 5000);
         
         // Only create socket once
         if (!socketRef.current) {
             socketRef.current = io();
-            console.log('[SCOREBOARD] Socket created, listening for scoreboardUpdated');
         }
         const socket = socketRef.current;
         
-        socket.on('connect', () => console.log('[SCOREBOARD] Socket connected'));
-        socket.on('disconnect', () => console.log('[SCOREBOARD] Socket disconnected'));
         const onUpdate = (data) => {
-            console.log('[SCOREBOARD] update received:', data);
             if (isMounted && Array.isArray(data)) {
-                setRows(data);
-                // double-check file persistence shortly after
-                setTimeout(fetchScores, 300);
+                setScores(data);
+                setIsLoading(false);
             }
         };
-        socket.on('scoreboardUpdated', onUpdate);
-        window.addEventListener('focus', fetchScores);
+        socket.on('speedScoresUpdated', onUpdate);
+        
         return () => {
             isMounted = false;
-            clearInterval(intervalId);
-            socket.off('scoreboardUpdated', onUpdate);
-            // Don't close socket here - let it persist for the component lifetime
-            window.removeEventListener('focus', fetchScores);
+            socket.off('speedScoresUpdated', onUpdate);
         };
     }, []);
     
     return (
-        <div className="scoreboard-list">
-            {rows.map((r, i) => (
-                <div key={r.name + i} className="score-row">
-                    <span className="score-name">{r.name}</span>
-                    <span className="score-points">{r.totalScore} pts</span>
-                </div>
-            ))}
-            {rows.length === 0 && <div className="score-empty">No scores yet</div>}
+        <div className="scoreboard card">
+            <div className="scoreboard-header">
+                <h3>🏆 Speed Game Leaderboard</h3>
+            </div>
+                   <div className="speed-scoreboard">
+                       {isLoading && scores.length === 0 ? (
+                    <div className="score-loading">Loading scores...</div>
+                ) : (
+                    <>
+                        {scores.map((score, i) => (
+                            <div key={score.username + i} className="speed-score-row">
+                                <span className="rank">#{i + 1}</span>
+                                <span className="username">{score.username}</span>
+                                <span className="score">{score.score}</span>
+                            </div>
+                        ))}
+                        {scores.length === 0 && <div className="score-empty">No speed game scores yet</div>}
+                    </>
+                )}
+            </div>
         </div>
     );
 };
@@ -191,10 +209,7 @@ const BonusHomePage = () => {
             >
                 Mandatory
             </button>
-            <div className="scoreboard card">
-                <h3>Top Scores (Bonus)</h3>
-                <Scoreboard />
-            </div>
+            <SpeedScoreboard />
         </div>
     );
 };
