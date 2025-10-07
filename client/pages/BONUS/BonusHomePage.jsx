@@ -104,6 +104,8 @@ const BonusHomePage = () => {
         if (roomName && playerName) {
             if (mode === 'speed') {
                 navigate(`/bonus-speed/${roomName}/${playerName}`);
+            } else if (mode === 'reverse') {
+                navigate(`/bonus-reverse/${roomName}/${playerName}`);
             } else {
                 navigate(`/${roomName}/${playerName}`);
             }

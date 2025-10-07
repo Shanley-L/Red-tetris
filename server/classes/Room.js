@@ -228,7 +228,15 @@ class Room {
     }
 
     makePieceFromTetromino(t) {
-        return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
+        if (this.roomMode === 'bonus-reverse') {
+            // For reverse gravity, start pieces much higher to ensure full visibility
+            // Start at y=12 to ensure ALL pieces are fully visible
+            // Board is 20 rows (0-19), so y=12 gives us plenty of room for all piece types
+            return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 18,r: 0 };
+        } else {
+            // Normal gravity - start at the top
+            return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
+        }
     }
 
     serializePiece(piece) {

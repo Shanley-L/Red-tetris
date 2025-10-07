@@ -1,3 +1,51 @@
+/* Reverse Gravity Indicator */
+.reverse-gravity-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 0, 0, 0.2);
+    border: 2px solid #ff0000;
+    border-radius: 8px;
+    padding: 8px 12px;
+    z-index: 10;
+    animation: pulse 2s infinite;
+}
+
+.gravity-icon {
+    font-size: 20px;
+    animation: rotate 3s linear infinite;
+}
+
+.gravity-text {
+    font-weight: bold;
+    color: #ff0000;
+    font-size: 12px;
+    text-shadow: 0 0 4px rgba(255, 0, 0, 0.5);
+}
+
+.reverse-note {
+    margin-top: 12px;
+    padding: 8px;
+    background: rgba(255, 0, 0, 0.1);
+    border: 1px solid rgba(255, 0, 0, 0.3);
+    border-radius: 4px;
+    font-size: 12px;
+    color: #ff6666;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* Bonus-specific scoreboard styles */
 .scoreboard-header {
     display: flex;

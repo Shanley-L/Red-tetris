@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import BonusHomePage from './pages/BONUS/BonusHomePage';
 import GamePage from './pages/GamePage';
 import BonusGameSpeed from './pages/BONUS/BonusGameSpeed';
+import BonusGameReverse from './pages/BONUS/BonusGameReverse';
 import './pages/HomePage.css';
 
 const container = document.getElementById('root');
@@ -15,6 +16,7 @@ root.render(
       <Route path="/" element={<HomePage />} />
       <Route path="/bonus" element={<BonusHomePage />} />
       <Route path="/bonus-speed/:roomName/:playerName" element={<BonusGameSpeed />} />
+      <Route path="/bonus-reverse/:roomName/:playerName" element={<BonusGameReverse />} />
       <Route path="/:roomName/:playerName" element={<GamePage />} />
     </Routes>
   </Router>

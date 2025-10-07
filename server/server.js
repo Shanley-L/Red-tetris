@@ -84,9 +84,65 @@ function serializePiece(piece) {
     return { shape: piece.shape, color: piece.color };
 }
 
-function makePieceFromTetromino(t) {
+// Helper functions to choose the right game logic based on room mode
+
+function makePieceFromTetromino(t, roomMode = 'normal') {
     if (!t) return null;
-    return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
+    
+    if (roomMode === 'bonus-reverse') {
+        // For reverse gravity, start pieces much higher to ensure full visibility
+        // Start at y=12 to ensure ALL pieces are fully visible
+        // Board is 20 rows (0-19), so y=12 gives us plenty of room for all piece types
+        return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 18,r: 0 };
+    } else {
+        // Normal gravity - start at the top
+        return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
+    }
+}
+
+// Helper function for reverse gravity - allows pieces to move upward
+function canPlaceReverse(grid, piece, offsetX = 0, offsetY = 0) {
+    if (!piece) return false;
+    const height = grid.length;
+    const width = grid[0]?.length || 0;
+
+    for (let y = 0; y < piece.shape.length; y++) {
+        for (let x = 0; x < piece.shape[y].length; x++) {
+            if (piece.shape[y][x] !== 0) {
+                const newX = piece.x + x + offsetX;
+                const newY = piece.y + y + offsetY;
+
+                // For reverse gravity: pieces can move upward (negative y direction)
+                // Game over happens when pieces reach the top (y < 0)
+                if (newX < 0 || newX >= width || newY < 0) return false;
+                // Check collision with existing blocks
+                if (newY < height && grid[newY][newX] !== 0) return false;
+            }
+        }
+    }
+    return true;
+}
+
+function clearLinesReverse(grid) {
+    // For reverse gravity, we need to add empty lines at the bottom (not top)
+    const width = grid[0]?.length || 0;
+    let linesCleared = 0;
+    const newGrid = [];
+
+    for (let y = 0; y < grid.length; y++) {
+        // Only clear lines that are full AND don't contain penalty blocks (8)
+        const full = grid[y].every(cell => cell !== 0 && cell !== 8);
+        if (full) {
+            linesCleared++;
+        } else {
+            newGrid.push(grid[y].slice());
+        }
+    }
+    // Add empty lines at the bottom for reverse gravity
+    while (newGrid.length < grid.length) {
+        newGrid.push(Array(width).fill(0));
+    }
+    return { grid: newGrid, linesCleared };
 }
 
 async function checkGameEnd(room) {
@@ -157,7 +213,10 @@ async function checkGameEnd(room) {
 async function handleGameTick(room) {
     if (!room || !room.gameStarted) return;
     
-    // Move pieces down and give new pieces to players who need them individually
+    // Determine gravity direction based on room mode
+    const gravityDirection = room.roomMode === 'bonus-reverse' ? -1 : 1;
+    
+    // Move pieces and give new pieces to players who need them individually
     for (const player of room.getPlayers()) {
         try {
         // Skip players without current piece (game ended)
@@ -168,10 +227,12 @@ async function handleGameTick(room) {
         const grid = player.board.grid;
         const now = Date.now();
         const interval = room.speedMode ? (player.dropIntervalMs || room.gameSpeed) : room.gameSpeed;
-        const canFall = canPlace(grid, player.currentPiece, 0, 1);
+        const canFall = room.roomMode === 'bonus-reverse' 
+            ? canPlaceReverse(grid, player.currentPiece, 0, gravityDirection)
+            : canPlace(grid, player.currentPiece, 0, gravityDirection);
 
         if (canFall && (!room.speedMode || now - (player.lastDropTime || 0) >= interval)) {
-            player.currentPiece = movePiece(player.currentPiece, 0, 1);
+            player.currentPiece = movePiece(player.currentPiece, 0, gravityDirection);
             if (room.speedMode) {
                 player.lastDropTime = now;
                 // Speed mode: per-player acceleration every 5 gravity drops
@@ -185,7 +246,9 @@ async function handleGameTick(room) {
         } else if (!canFall) {
             // Piece needs to lock
             const locked = lockPiece(grid, player.currentPiece);
-            const { grid: cleared, linesCleared } = clearLines(locked);
+            const { grid: cleared, linesCleared } = room.roomMode === 'bonus-reverse' 
+                ? clearLinesReverse(locked) 
+                : clearLines(locked);
             player.board.grid = cleared;
             // Bonus scoring only for bonus rooms
             if (room.roomMode === 'bonus' && linesCleared > 0) {
@@ -203,15 +266,15 @@ async function handleGameTick(room) {
                     for (const otherPlayer of room.getPlayers()) {
                         if (otherPlayer.socketId !== player.socketId) {
                             console.log(`Adding ${penaltyLines} penalty lines to ${otherPlayer.name}`);
-                            otherPlayer.board.grid = addPenaltyLines(otherPlayer.board.grid, penaltyLines);
+                            otherPlayer.board.grid = gameLogic.addPenaltyLines(otherPlayer.board.grid, penaltyLines);
                             // Adjust current falling piece upward to compensate for garbage push
                             if (otherPlayer.currentPiece) {
                                 let adjusted = { ...otherPlayer.currentPiece, y: otherPlayer.currentPiece.y - penaltyLines };
                                 // Try moving further up if still colliding, up to a small safety margin
-                                while (!canPlace(otherPlayer.board.grid, adjusted, 0, 0) && adjusted.y > -6) {
+                                while (!gameLogic.canPlace(otherPlayer.board.grid, adjusted, 0, 0) && adjusted.y > -6) {
                                     adjusted = { ...adjusted, y: adjusted.y - 1 };
                                 }
-                                if (canPlace(otherPlayer.board.grid, adjusted, 0, 0)) {
+                                if (gameLogic.canPlace(otherPlayer.board.grid, adjusted, 0, 0)) {
                                     otherPlayer.currentPiece = adjusted;
                                 }
                             }
@@ -223,7 +286,7 @@ async function handleGameTick(room) {
                             });
                             
                             // Check if penalty lines caused game over
-                            if (!canPlace(otherPlayer.board.grid, otherPlayer.currentPiece, 0, 0)) {
+                            if (!gameLogic.canPlace(otherPlayer.board.grid, otherPlayer.currentPiece, 0, 0)) {
                                 console.log(`Game Over for ${otherPlayer.name} due to penalty lines`);
                                 // Persist loser score in bonus rooms
                                 if (room.roomMode === 'bonus') {
@@ -289,7 +352,7 @@ async function handleGameTick(room) {
             console.log(`Player ${player.name} sequence index: ${player.sequenceIndex}`);
             console.log(`New current piece: ${newCurrentPiece.type}, new next piece: ${newNextPiece.type}`);
             
-            player.currentPiece = newCurrentPiece ? makePieceFromTetromino(newCurrentPiece) : null;
+            player.currentPiece = newCurrentPiece ? makePieceFromTetromino(newCurrentPiece, room.roomMode) : null;
             player.nextPiece = newNextPiece;
             player.needsNewPiece = false;
             
@@ -301,7 +364,7 @@ async function handleGameTick(room) {
             console.log(`=== END INDIVIDUAL SEQUENCE COPY DISTRIBUTION ===\n`);
             
             // Check for game over after assigning new piece
-            if (!canPlace(player.board.grid, player.currentPiece, 0, 0)) {
+            if (!gameLogic.canPlace(player.board.grid, player.currentPiece, 0, 0)) {
                 console.log(`Game Over for ${player.name}`);
                 // Persist loser score in bonus rooms
                 if (room.roomMode === 'bonus') {
@@ -343,7 +406,7 @@ async function handleGameTick(room) {
             ? renderWithPiece(player.board.grid, player.currentPiece)
             : player.board.grid;
         const nextPieceSerialized = player.nextPiece
-            ? serializePiece(makePieceFromTetromino(player.nextPiece))
+            ? serializePiece(makePieceFromTetromino(player.nextPiece, room.roomMode))
             : null;
         
         const curType = player.currentPiece ? player.currentPiece.type : 'none';
@@ -373,18 +436,21 @@ async function handleGameTick(room) {
     });
 }
 
-function handleSoftDropTick(player) {
+function handleSoftDropTick(player, roomMode = 'normal') {
     const grid = player.board.grid;
-    const canFall = canPlace(grid, player.currentPiece, 0, 1);
+    const gravityDirection = roomMode === 'bonus-reverse' ? -1 : 1;
+    const canFall = roomMode === 'bonus-reverse' 
+        ? canPlaceReverse(grid, player.currentPiece, 0, gravityDirection)
+        : canPlace(grid, player.currentPiece, 0, gravityDirection);
 
     if (canFall) {
-        player.currentPiece = movePiece(player.currentPiece, 0, 1);
+        player.currentPiece = movePiece(player.currentPiece, 0, gravityDirection);
         const boardWithPiece = player.currentPiece
             ? renderWithPiece(player.board.grid, player.currentPiece)
             : player.board.grid;
         player.socket.emit('updateBoard', {
             board: boardWithPiece,
-            nextPiece: player.nextPiece ? serializePiece(makePieceFromTetromino(player.nextPiece)) : null
+            nextPiece: player.nextPiece ? serializePiece(makePieceFromTetromino(player.nextPiece, roomMode)) : null
         });
     } else {
         // Piece can't fall anymore, stop soft drop
@@ -479,7 +545,7 @@ io.on('connection', (socket) => {
                     const boardWithPiece = renderWithPiece(currentPlayer.board.grid, currentPlayer.currentPiece);
                     socket.emit('updateBoard', {
                         board: boardWithPiece,
-                        nextPiece: currentPlayer.nextPiece ? serializePiece(makePieceFromTetromino(currentPlayer.nextPiece)) : null
+                        nextPiece: currentPlayer.nextPiece ? serializePiece(makePieceFromTetromino(currentPlayer.nextPiece, currentRoom.roomMode)) : null
                     });
                 } else {
                     // No pieces yet, send empty board
@@ -513,7 +579,7 @@ io.on('connection', (socket) => {
                 const boardWithPiece = renderWithPiece(currentPlayer.board.grid, currentPlayer.currentPiece);
                 socket.emit('updateBoard', {
                     board: boardWithPiece,
-                    nextPiece: serializePiece(makePieceFromTetromino(currentPlayer.nextPiece))
+                    nextPiece: serializePiece(makePieceFromTetromino(currentPlayer.nextPiece, currentRoom.roomMode))
                 });
             } else {
                 // No pieces yet, send empty board
@@ -573,9 +639,11 @@ io.on('connection', (socket) => {
             const grid = currentPlayer.board.grid;
             
             if (direction === 'hardDrop') {
+                const gravityDirection = currentRoom.roomMode === 'bonus-reverse' ? -1 : 1;
                 let falling = currentPlayer.currentPiece;
-                while (canPlace(grid, falling, 0, 1)) {
-                    falling = movePiece(falling, 0, 1);
+                const canPlaceFunc = currentRoom.roomMode === 'bonus-reverse' ? canPlaceReverse : canPlace;
+                while (canPlaceFunc(grid, falling, 0, gravityDirection)) {
+                    falling = movePiece(falling, 0, gravityDirection);
                 }
                 currentPlayer.currentPiece = falling;
                 await handleGameTick(currentRoom);
@@ -593,7 +661,7 @@ io.on('connection', (socket) => {
                         clearInterval(currentPlayer.softDropTimer);
                     }
                     currentPlayer.softDropTimer = setInterval(() => {
-                        handleSoftDropTick(currentPlayer);
+                        handleSoftDropTick(currentPlayer, currentRoom.roomMode);
                     }, 50);
                 }
             } else {
@@ -610,7 +678,7 @@ io.on('connection', (socket) => {
             const boardWithPiece = renderWithPiece(currentPlayer.board.grid, currentPlayer.currentPiece);
             socket.emit('updateBoard', {
                 board: boardWithPiece,
-                nextPiece: serializePiece(makePieceFromTetromino(currentPlayer.nextPiece))
+                nextPiece: serializePiece(makePieceFromTetromino(currentPlayer.nextPiece, currentRoom.roomMode))
             });
         } catch (error) {
             console.error(`Error handling move: ${error.message}`);
