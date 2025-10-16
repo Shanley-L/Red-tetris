@@ -57,8 +57,62 @@ function initDatabase() {
                         reject(err);
                         return;
                     }
-                    console.log('Database initialized successfully');
-                    resolve();
+                    // Create reverse_game_scores table
+                    db.run(`
+                        CREATE TABLE IF NOT EXISTS reverse_game_scores (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            player_name TEXT NOT NULL,
+                            score INTEGER NOT NULL,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )
+                    `, (err) => {
+                        if (err) {
+                            console.error('Error creating reverse_game_scores table:', err.message);
+                            reject(err);
+                            return;
+                        }
+                        // Create newbrick_game_scores table
+                        db.run(`
+                            CREATE TABLE IF NOT EXISTS newbrick_game_scores (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                player_name TEXT NOT NULL,
+                                score INTEGER NOT NULL,
+                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                            )
+                        `, (err) => {
+                            if (err) {
+                                console.error('Error creating newbrick_game_scores table:', err.message);
+                                reject(err);
+                                return;
+                            }
+                            // Seed demo data for reverse/newbrick leaderboards if empty
+                            db.get(`SELECT COUNT(*) as cnt FROM reverse_game_scores`, (err, row) => {
+                                if (err) {
+                                    console.error('Error counting reverse_game_scores:', err.message);
+                                } else if ((row?.cnt || 0) === 0) {
+                                    const seedReverse = db.prepare(`INSERT INTO reverse_game_scores (player_name, score) VALUES (?, ?)`);
+                                    seedReverse.run('Rev_Alice', 1200);
+                                    seedReverse.run('Rev_Bob', 950);
+                                    seedReverse.run('Rev_Carol', 780);
+                                    seedReverse.finalize();
+                                }
+                                // Force-reseed specific demo rows for New Bricks leaderboard
+                                db.run(`DELETE FROM newbrick_game_scores WHERE player_name IN ('Brick_Alice','Brick_Bob','Brick_Carol')`, (delErr) => {
+                                    if (delErr) {
+                                        console.error('Error deleting old newbrick demo rows:', delErr.message);
+                                    }
+                                    const seedNew = db.prepare(`INSERT INTO newbrick_game_scores (player_name, score) VALUES (?, ?)`);
+                                    seedNew.run('Brick_Alice', 900);
+                                    seedNew.run('Brick_Bob', 300);
+                                    seedNew.run('Brick_Carol', 60);
+                                    seedNew.finalize(() => {
+                                        console.log('Database initialized successfully');
+                                        resolve();
+                                    });
+                                });
+                            });
+                        });
+                    });
                 });
             });
         });
@@ -218,6 +272,86 @@ function getTopSpeedGameScores(n = 3) {
     });
 }
 
+function addReverseGameScore(playerName, score) {
+    return new Promise((resolve, reject) => {
+        if (!playerName || score === undefined) { resolve(); return; }
+        db.run(
+            `INSERT INTO reverse_game_scores (player_name, score) VALUES (?, ?)`,
+            [playerName, score],
+            function(err) {
+                if (err) {
+                    console.error('Error inserting reverse game score:', err.message);
+                    reject(err);
+                    return;
+                }
+                console.log(`Added reverse game score for ${playerName}: ${score}`);
+                resolve();
+            }
+        );
+    });
+}
+
+function getTopReverseGameScores(n = 3) {
+    return new Promise((resolve, reject) => {
+        db.all(
+            `SELECT player_name as username, MAX(score) as score 
+             FROM reverse_game_scores 
+             GROUP BY player_name
+             ORDER BY score DESC 
+             LIMIT ?`,
+            [n],
+            (err, rows) => {
+                if (err) {
+                    console.error('Error getting top reverse game scores:', err.message);
+                    reject(err);
+                    return;
+                }
+                resolve(rows || []);
+            }
+        );
+    });
+}
+
+function addNewbrickGameScore(playerName, score) {
+    return new Promise((resolve, reject) => {
+        if (!playerName || score === undefined) { resolve(); return; }
+        db.run(
+            `INSERT INTO newbrick_game_scores (player_name, score) VALUES (?, ?)`,
+            [playerName, score],
+            function(err) {
+                if (err) {
+                    console.error('Error inserting newbrick game score:', err.message);
+                    reject(err);
+                    return;
+                }
+                console.log(`Added newbrick game score for ${playerName}: ${score}`);
+                resolve();
+            }
+        );
+    });
+}
+
+function getTopNewbrickGameScores(n = 3) {
+    return new Promise((resolve, reject) => {
+        db.all(
+            `SELECT player_name as username, MAX(score) as score 
+             FROM newbrick_game_scores 
+             GROUP BY player_name
+             ORDER BY score DESC 
+             LIMIT ?`,
+            [n],
+            (err, rows) => {
+                if (err) {
+                    console.error('Error getting top newbrick game scores:', err.message);
+                    reject(err);
+                    return;
+                }
+                resolve(rows || []);
+            }
+        );
+    });
+}
+
 function closeDatabase() {
     return new Promise((resolve) => {
         if (db) {
@@ -246,6 +380,10 @@ module.exports = {
     getAllScores,
     addSpeedGameScore,
     getTopSpeedGameScores,
+    addReverseGameScore,
+    getTopReverseGameScores,
+    addNewbrickGameScore,
+    getTopNewbrickGameScores,
     closeDatabase,
     initDatabase
 };

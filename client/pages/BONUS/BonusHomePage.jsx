@@ -88,6 +88,94 @@ const SpeedScoreboard = () => {
     );
 };
 
+// Reverse Game Scoreboard Component
+const ReverseScoreboard = () => {
+    const [scores, setScores] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const socketRef = useRef(null);
+    useEffect(() => {
+        let isMounted = true;
+        const fetchScores = () => {
+            setIsLoading(true);
+            fetch('/api/reverse-scores?n=3')
+                .then(r => r.json())
+                .then(data => { if (isMounted) { setScores(Array.isArray(data) ? data : []); setIsLoading(false); }})
+                .catch(() => { if (isMounted) { setScores([]); setIsLoading(false); }});
+        };
+        fetchScores();
+        if (!socketRef.current) socketRef.current = io();
+        const socket = socketRef.current;
+        const onUpdate = (data) => { if (isMounted && Array.isArray(data)) { setScores(data); setIsLoading(false); } };
+        socket.on('reverseScoresUpdated', onUpdate);
+        return () => { isMounted = false; socket.off('reverseScoresUpdated', onUpdate); };
+    }, []);
+    return (
+        <div className="scoreboard card">
+            <div className="scoreboard-header"><h3>🔁 Reverse Leaderboard</h3></div>
+            <div className="speed-scoreboard">
+                {isLoading && scores.length === 0 ? (
+                    <div className="score-loading">Loading scores...</div>
+                ) : (
+                    <>
+                        {scores.map((score, i) => (
+                            <div key={score.username + i} className="speed-score-row">
+                                <span className="rank">#{i + 1}</span>
+                                <span className="username">{score.username}</span>
+                                <span className="score">{score.score}</span>
+                            </div>
+                        ))}
+                        {scores.length === 0 && <div className="score-empty">No reverse scores yet</div>}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Newbrick Game Scoreboard Component
+const NewbrickScoreboard = () => {
+    const [scores, setScores] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const socketRef = useRef(null);
+    useEffect(() => {
+        let isMounted = true;
+        const fetchScores = () => {
+            setIsLoading(true);
+            fetch('/api/newbrick-scores?n=3')
+                .then(r => r.json())
+                .then(data => { if (isMounted) { setScores(Array.isArray(data) ? data : []); setIsLoading(false); }})
+                .catch(() => { if (isMounted) { setScores([]); setIsLoading(false); }});
+        };
+        fetchScores();
+        if (!socketRef.current) socketRef.current = io();
+        const socket = socketRef.current;
+        const onUpdate = (data) => { if (isMounted && Array.isArray(data)) { setScores(data); setIsLoading(false); } };
+        socket.on('newbrickScoresUpdated', onUpdate);
+        return () => { isMounted = false; socket.off('newbrickScoresUpdated', onUpdate); };
+    }, []);
+    return (
+        <div className="scoreboard card">
+            <div className="scoreboard-header"><h3>🧱 New Bricks Leaderboard</h3></div>
+            <div className="speed-scoreboard">
+                {isLoading && scores.length === 0 ? (
+                    <div className="score-loading">Loading scores...</div>
+                ) : (
+                    <>
+                        {scores.map((score, i) => (
+                            <div key={score.username + i} className="speed-score-row">
+                                <span className="rank">#{i + 1}</span>
+                                <span className="username">{score.username}</span>
+                                <span className="score">{score.score}</span>
+                            </div>
+                        ))}
+                        {scores.length === 0 && <div className="score-empty">No new bricks scores yet</div>}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const BonusHomePage = () => {
     const [roomName, setRoomName] = useState('');
     const [playerName, setPlayerName] = useState('');
@@ -106,6 +194,8 @@ const BonusHomePage = () => {
                 navigate(`/bonus-speed/${roomName}/${playerName}`);
             } else if (mode === 'reverse') {
                 navigate(`/bonus-reverse/${roomName}/${playerName}`);
+            } else if (mode === 'bricks') {
+                navigate(`/bonus-newbrick/${roomName}/${playerName}`);
             } else {
                 navigate(`/${roomName}/${playerName}`);
             }
@@ -176,13 +266,6 @@ const BonusHomePage = () => {
                     >
                         Reverse gravity
                     </button>
-                    <button
-                        type="button"
-                        className={`bonus-action bomb ${mode === 'bomb' ? 'selected' : ''}`}
-                        onClick={() => setMode('bomb')}
-                    >
-                        Bombrick
-                    </button>
                 </div>
                 <input
                     type="text"
@@ -211,7 +294,11 @@ const BonusHomePage = () => {
             >
                 Mandatory
             </button>
-            <SpeedScoreboard />
+            <div className="scoreboards">
+                <SpeedScoreboard />
+                <ReverseScoreboard />
+                <NewbrickScoreboard />
+            </div>
         </div>
     );
 };

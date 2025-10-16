@@ -4,9 +4,9 @@ import io from 'socket.io-client';
 import Board from '../../components/Board';
 import NextPiece from '../../components/NextPiece';
 import '../GamePage.css';
-import './BonusHomePage.css';
 
-const BonusGameReverse = () => {
+// Socket instantiated on mount
+const BonusGameNewbrick = () => {
   const { roomName, playerName } = useParams();
   const navigate = useNavigate();
   const [board, setBoard] = useState([]);
@@ -33,7 +33,8 @@ const BonusGameReverse = () => {
     }
     const socket = socketRef.current;
     if (!joinedRef.current && !gameStarted) {
-      socket.emit('joinRoom', { roomName, playerName, mode: 'bonus-reverse' });
+      // Join using dedicated newbrick mode so server serves alternate shapes
+      socket.emit('joinRoom', { roomName, playerName, mode: 'bonus-newbrick' });
       joinedRef.current = true;
     }
 
@@ -100,21 +101,14 @@ const BonusGameReverse = () => {
     });
 
     socket.on('penaltyReceived', ({ lines, fromPlayer }) => {
-      setPenaltyNotification({
-        lines,
-        fromPlayer,
-        timestamp: Date.now()
-      });
-      
-      setTimeout(() => {
-        setPenaltyNotification(null);
-      }, 3000);
+      setPenaltyNotification({ lines, fromPlayer, timestamp: Date.now() });
+      setTimeout(() => setPenaltyNotification(null), 3000);
     });
 
     socket.on('disconnect', () => {
-      console.log('Socket disconnected during reverse game');
+      console.log('Socket disconnected during bonus newbrick game');
       if (gameStarted) {
-        console.log('Reverse game in progress, not attempting reconnection');
+        console.log('Game in progress, not attempting reconnection');
       }
     });
 
@@ -148,11 +142,11 @@ const BonusGameReverse = () => {
 
   if (error) {
     return (
-      <div className="game-page bonus-theme">
+      <div className="game-page">
         <div className="content">
           <div className="error-message">
             <h2>Error: {error}</h2>
-            <button onClick={handleLeave}>Back to Bonus Home</button>
+            <button onClick={handleLeave}>Back to Home</button>
           </div>
         </div>
       </div>
@@ -162,18 +156,18 @@ const BonusGameReverse = () => {
   if (gameEnded) {
     socketRef.current?.emit('leaveRoom');
     return (
-      <div className="game-page bonus-theme">
+      <div className="game-page">
         <div className="content">
           <div className={`game-end-message ${isEliminated ? 'eliminated' : ''}`}>
             {isWinner ? (
               <>
                 <h2>🎉 You Won! 🎉</h2>
-                <p>Congratulations! You mastered the reverse gravity!</p>
+                <p>Congratulations! You are the last player standing!</p>
               </>
             ) : isEliminated ? (
               <>
                 <h2>💀 You Were Eliminated 💀</h2>
-                <p>Better luck next time! The reverse gravity got you!</p>
+                <p>Better luck next time! Your board got too full.</p>
               </>
             ) : (
               <>
@@ -181,7 +175,7 @@ const BonusGameReverse = () => {
                 <p>Winner: {winner}</p>
               </>
             )}
-            <button onClick={handleLeave}>Back to Bonus Home</button>
+            <button onClick={handleLeave}>Back to Home</button>
           </div>
         </div>
       </div>
@@ -189,10 +183,10 @@ const BonusGameReverse = () => {
   }
 
   return (
-    <div className="game-page bonus-theme" ref={appRef} tabIndex="0">
+    <div className="game-page" ref={appRef} tabIndex="0">
       <div className="content">
         <header className="game-header">
-          <div className="brand">Red Tetris - Reverse Gravity</div>
+          <div className="brand">Red Tetris — New Bricks</div>
           <div className="meta">Room: {roomName} · Player: {playerName}</div>
           {isHost && <div className="host-indicator">HOST</div>}
         </header>
@@ -209,12 +203,12 @@ const BonusGameReverse = () => {
           
           {!gameStarted && isHost && (
             <button className="start-game-button" onClick={handleStartGame}>
-              Start Reverse Game
+              Start Game
             </button>
           )}
           
           {gameStarted && (
-            <div className="game-status">Reverse Game in Progress</div>
+            <div className="game-status">Game in Progress</div>
           )}
         </div>
 
@@ -247,10 +241,6 @@ const BonusGameReverse = () => {
           </aside>
           
           <div className="board-wrapper">
-            <div className="reverse-gravity-indicator">
-              <div className="gravity-icon">🔄</div>
-              <div className="gravity-text">REVERSE GRAVITY</div>
-            </div>
             <Board board={board} />
             {penaltyNotification && (
               <div className="penalty-notification">
@@ -267,16 +257,13 @@ const BonusGameReverse = () => {
           
           <aside className="side-right">
             <div className="card controls">
-              <h3>Reverse Controls</h3>
+              <h3>Controls</h3>
               <ul>
                 <li>← →: Move</li>
                 <li>↑: Rotate</li>
-                <li>↓: Soft Drop (Upward)</li>
-                <li>Space: Hard Drop (Upward)</li>
+                <li>↓: Soft Drop</li>
+                <li>Space: Hard Drop</li>
               </ul>
-              <div className="reverse-note">
-                <strong>Note:</strong> Pieces fall upward in reverse gravity mode!
-              </div>
             </div>
           </aside>
         </div>
@@ -285,4 +272,4 @@ const BonusGameReverse = () => {
   );
 };
 
-export default BonusGameReverse;
+export default BonusGameNewbrick;

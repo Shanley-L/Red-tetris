@@ -23,7 +23,6 @@ function canPlace(grid, piece, offsetX = 0, offsetY = 0) {
 }
 
 function rotateShape(shape) {
-    // 90° clockwise rotation for any rectangular matrix
     const rows = shape.length;
     const cols = shape[0].length;
     const res = Array.from({ length: cols }, () => Array(rows).fill(0));
@@ -36,7 +35,6 @@ function rotateShape(shape) {
 }
 
 function rotateShapeCCW(shape) {
-    // 90° counter-clockwise rotation for any rectangular matrix
     const rows = shape.length;
     const cols = shape[0].length;
     const res = Array.from({ length: cols }, () => Array(rows).fill(0));
@@ -48,8 +46,6 @@ function rotateShapeCCW(shape) {
     return res;
 }
 
-// Super Rotation System (SRS) wall kick data
-// Offsets are pairs (dx, dy) tested in order
 const SRS_KICKS_JLSTZ = {
     '0>1': [[0,0], [-1,0], [-1,1], [0,-2], [-1,-2]],
     '1>2': [[0,0], [1,0], [1,-1], [0,2], [1,2]],
@@ -73,13 +69,12 @@ const SRS_KICKS_I = {
 };
 
 function getKicks(type, fromR, toR) {
-    if (type === 'O') return [[0,0]]; // O piece stays centered in this simplified model
+    if (type === 'O') return [[0,0]];
     const key = `${fromR}>${toR}`;
     if (type === 'I') return SRS_KICKS_I[key] || [[0,0]];
     return SRS_KICKS_JLSTZ[key] || [[0,0]];
 }
 
-// direction: 'CW' or 'CCW'
 function rotatePieceWithKicks(grid, piece, direction) {
     const fromR = piece.r ?? 0;
     const toR = direction === 'CCW' ? (fromR + 3) % 4 : (fromR + 1) % 4;
@@ -92,7 +87,7 @@ function rotatePieceWithKicks(grid, piece, direction) {
             return candidate;
         }
     }
-    return piece; // rotation failed, return original
+    return piece;
 }
 
 function movePiece(piece, dx, dy) {
@@ -123,7 +118,6 @@ function clearLines(grid) {
     const newGrid = [];
 
     for (let y = 0; y < grid.length; y++) {
-        // Only clear lines that are full AND don't contain penalty blocks (8)
         const full = grid[y].every(cell => cell !== 0 && cell !== 8);
         if (full) {
             linesCleared++;
@@ -143,12 +137,9 @@ function addPenaltyLines(grid, numLines) {
     const width = grid[0]?.length || 0;
     const newGrid = cloneGrid(grid);
     
-    // Add penalty lines at the bottom
     for (let i = 0; i < numLines; i++) {
-        // Create a penalty line with random gaps (indestructible)
-        const penaltyLine = Array(width).fill(8); // Use 8 to mark penalty blocks
-        // Add random gaps to make it more interesting
-        const gapCount = Math.floor(Math.random() * 3) + 1; // 1-3 gaps
+        const penaltyLine = Array(width).fill(8);
+        const gapCount = Math.floor(Math.random() * 3) + 1;
         for (let j = 0; j < gapCount; j++) {
             const gapPos = Math.floor(Math.random() * width);
             penaltyLine[gapPos] = 0;
@@ -156,9 +147,31 @@ function addPenaltyLines(grid, numLines) {
         newGrid.push(penaltyLine);
     }
     
-    // Remove lines from the top to maintain board height
     while (newGrid.length > 20) {
         newGrid.shift();
+    }
+    
+    return newGrid;
+}
+
+function addPenaltyLinesReverse(grid, numLines) {
+    if (numLines <= 0) return grid;
+    
+    const width = grid[0]?.length || 0;
+    const newGrid = cloneGrid(grid);
+    
+    for (let i = 0; i < numLines; i++) {
+        const penaltyLine = Array(width).fill(8);
+        const gapCount = Math.floor(Math.random() * 3) + 1;
+        for (let j = 0; j < gapCount; j++) {
+            const gapPos = Math.floor(Math.random() * width);
+            penaltyLine[gapPos] = 0;
+        }
+        newGrid.unshift(penaltyLine);
+    }
+    
+    while (newGrid.length > 20) {
+        newGrid.pop();
     }
     
     return newGrid;
@@ -191,6 +204,7 @@ module.exports = {
     lockPiece,
     clearLines,
     addPenaltyLines,
+    addPenaltyLinesReverse,
     renderWithPiece,
 };
 

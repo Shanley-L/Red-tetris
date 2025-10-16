@@ -24,3 +24,12 @@
 .cell.filled.green  { background-color: #81c784; }
 .cell.filled.red    { background-color: #f44336; }  /* Z → rouge pur plus distinct */
 
+/* Newbrick bonus piece colors (distinct from mandatory set) */
+.cell.filled.teal       { background-color: #26a69a; }
+.cell.filled.goldenrod  { background-color: #d4a017; }
+.cell.filled.magenta    { background-color: #e040fb; }
+.cell.filled.brown      { background-color: #8d6e63; }
+.cell.filled.dodgerblue { background-color: #1e88e5; }
+.cell.filled.darkorange { background-color: #ff7043; }
+.cell.filled.darkgreen  { background-color: #2e7d32; }
+

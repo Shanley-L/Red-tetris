@@ -146,61 +146,75 @@ class Room {
         
         // Generate 50 pieces at a time
         for (let i = 0; i < 50; i++) {
-            this.pieceSequence.push(new Tetromino(null, () => this.seededRandom()));
+            // Use alternate shapes when in newbrick bonus mode
+            const modeKey = this.roomMode === 'bonus-newbrick' ? 'bonus-newbrick' : 'classic';
+            this.pieceSequence.push(new Tetromino(null, () => this.seededRandom(), modeKey));
         }
         this.currentPieceIndex = 0;
         
-        console.log(`Generated piece sequence for room ${this.name} with seed ${gameSeed}`);
-        console.log(`First 20 pieces: ${this.pieceSequence.slice(0, 20).map(p => p.type).join(', ')}`);
-        console.log(`Sequence length: ${this.pieceSequence.length}`);
+    }
+
+    extendSequencesIfNeeded(chunkSize = 50, minRemaining = 2) {
+        const players = this.getPlayers();
+        if (players.length === 0) return;
+        let needsExtend = false;
+        for (const p of players) {
+            const remaining = (p.pieceSequence?.length || 0) - (p.sequenceIndex || 0);
+            if (remaining <= minRemaining) {
+                needsExtend = true;
+                break;
+            }
+        }
+        if (!needsExtend) return;
+
+        const modeKey = this.roomMode === 'bonus-newbrick' ? 'bonus-newbrick' : 'classic';
+        const sharedChunk = [];
+        for (let i = 0; i < chunkSize; i++) {
+            sharedChunk.push(new Tetromino(null, () => this.seededRandom(), modeKey));
+        }
+        players.forEach(p => {
+            if (!Array.isArray(p.pieceSequence)) p.pieceSequence = [];
+            p.pieceSequence = p.pieceSequence.concat(sharedChunk);
+        });
     }
 
     setRandomSeed(seed) {
-        // Simple linear congruential generator for consistent randomness
         this.randomSeed = seed;
     }
 
     seededRandom() {
-        // Linear congruential generator
         this.randomSeed = (this.randomSeed * 1664525 + 1013904223) % Math.pow(2, 32);
         return this.randomSeed / Math.pow(2, 32);
     }
 
     getNextPiece() {
         if (this.currentPieceIndex >= this.pieceSequence.length) {
-            console.log(`\n=== GENERATING NEW SEQUENCE ===`);
-            console.log(`Room ${this.name}: Reached end of sequence (${this.pieceSequence.length} pieces)`);
-            console.log(`Generating new 50-piece sequence...`);
             this.generatePieceSequence();
-            console.log(`=== END NEW SEQUENCE GENERATION ===\n`);
         }
         const piece = this.pieceSequence[this.currentPieceIndex++];
-        console.log(`Room ${this.name}: Giving piece ${piece.type} at index ${this.currentPieceIndex - 1}`);
         return piece;
     }
 
     initializePieces() {
-        console.log(`\n=== INITIALIZING PIECES ===`);
-        console.log(`Initializing pieces for ${this.players.size} players`);
-        console.log(`Current sequence index: ${this.currentPieceIndex}`);
-        console.log(`Players: ${Array.from(this.players.values()).map(p => p.name).join(', ')}`);
         
         // Give each player their own copy of the sequence
         this.players.forEach(player => {
-            // Clone the sequence for this player
             player.pieceSequence = [...this.pieceSequence];
-            player.sequenceIndex = this.currentPieceIndex;
+            player.sequenceIndex = 0;
             
             const currentPiece = player.pieceSequence[player.sequenceIndex];
             const nextPiece = player.pieceSequence[player.sequenceIndex + 1];
             
-            console.log(`Player ${player.name} got sequence copy with ${player.pieceSequence.length} pieces`);
-            console.log(`Player ${player.name} starting at index: ${player.sequenceIndex}`);
-            console.log(`Player ${player.name} got pieces: current=${currentPiece.type}, next=${nextPiece.type}`);
+            
+            if (!currentPiece || !nextPiece) {
+                return;
+            }
             
             player.currentPiece = this.makePieceFromTetromino(currentPiece);
             player.nextPiece = nextPiece;
-            // Initialize per-player speed mode timers to the room speed on start
+            
+            player.sequenceIndex += 1;
+            
             player.dropIntervalMs = this.gameSpeed;
             player.lastDropTime = Date.now();
             player.dropsSinceSpeedUp = 0;
@@ -220,21 +234,12 @@ class Room {
                 });
             }
         });
-        
-        // Advance sequence index by 1 (only the current piece) to match game tick logic
-        this.currentPieceIndex += 1;
-        console.log(`Sequence index advanced to: ${this.currentPieceIndex}`);
-        console.log(`=== END INITIALIZATION ===\n`);
     }
 
     makePieceFromTetromino(t) {
         if (this.roomMode === 'bonus-reverse') {
-            // For reverse gravity, start pieces much higher to ensure full visibility
-            // Start at y=12 to ensure ALL pieces are fully visible
-            // Board is 20 rows (0-19), so y=12 gives us plenty of room for all piece types
-            return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 18,r: 0 };
+            return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 18, r: 0 };
         } else {
-            // Normal gravity - start at the top
             return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
         }
     }
@@ -261,11 +266,9 @@ class Room {
 
     cleanup() {
         this.stopGame();
-        // Room will be removed from the rooms map by the server
     }
 
     getSpectrum(player) {
-        // Return spectrum (column heights) for other players
         const spectrum = [];
         for (let x = 0; x < player.board.width; x++) {
             let height = 0;

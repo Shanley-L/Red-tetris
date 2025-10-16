@@ -285,6 +285,7 @@ describe('Server', () => {
         expect(gameLogic.lockPiece).toBeDefined();
         expect(gameLogic.clearLines).toBeDefined();
         expect(gameLogic.addPenaltyLines).toBeDefined();
+        expect(gameLogic.addPenaltyLinesReverse).toBeDefined();
         expect(gameLogic.renderWithPiece).toBeDefined();
     });
 

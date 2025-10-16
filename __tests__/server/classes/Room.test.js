@@ -165,7 +165,7 @@ describe('Room Class', () => {
             
             expect(result).toBe(true);
             expect(room.gameStarted).toBe(true);
-            expect(room.currentPieceIndex).toBe(1); // After initializePieces, index is advanced
+            expect(room.currentPieceIndex).toBe(0); // After cleanup, index stays at 0
         });
 
         test('should throw error when starting game without players', () => {
@@ -460,6 +460,30 @@ describe('Room Class', () => {
                 expect(mockPlayer2.nextPiece).toBeDefined();
                 expect(mockPlayer1.socket.emit).toHaveBeenCalledWith('updateBoard', expect.any(Object));
                 expect(mockPlayer2.socket.emit).toHaveBeenCalledWith('updateBoard', expect.any(Object));
+            });
+
+            test('should initialize players with correct sequence index', () => {
+                const mockPlayer = {
+                    name: 'Player1',
+                    socket: { emit: jest.fn() },
+                    board: { grid: Array(20).fill().map(() => Array(10).fill(0)) },
+                    currentPiece: null,
+                    nextPiece: null,
+                    sequenceIndex: -1 // Start with invalid value
+                };
+                
+                room.players.set('socket1', mockPlayer);
+                room.pieceSequence = [
+                    new (require('../../../server/classes/Tetromino').Tetromino)('I'),
+                    new (require('../../../server/classes/Tetromino').Tetromino)('O')
+                ];
+                room.currentPieceIndex = 5; // Set room index to something other than 0
+                
+                room.initializePieces();
+                
+                // Player should start with sequenceIndex = 0, then advance to 1 during initialization
+                expect(mockPlayer.sequenceIndex).toBe(1);
+                expect(mockPlayer.pieceSequence).toEqual(room.pieceSequence);
             });
         });
 

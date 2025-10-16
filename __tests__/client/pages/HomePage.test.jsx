@@ -150,8 +150,8 @@ describe('HomePage Component', () => {
         const inputs = screen.getAllByRole('textbox');
         expect(inputs).toHaveLength(2);
         
-        const button = screen.getByRole('button');
-        expect(button).toBeInTheDocument();
+        const buttons = screen.getAllByRole('button');
+        expect(buttons).toHaveLength(2);
     });
 
     test('should have required attributes on inputs', () => {

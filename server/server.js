@@ -16,19 +16,19 @@ const {
     lockPiece,
     clearLines,
     addPenaltyLines,
+    addPenaltyLinesReverse,
     renderWithPiece,
 } = require('./logic/gameLogic');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-const { updateScore, getTopScores, addSpeedGameScore, getTopSpeedGameScores } = require('./database');
+const { updateScore, getTopScores, addSpeedGameScore, getTopSpeedGameScores, addReverseGameScore, getTopReverseGameScores, addNewbrickGameScore, getTopNewbrickGameScores } = require('./database');
 
 const PORT = process.env.PORT || 3000;
 const publicPath = path.join(__dirname, '..', 'public');
 
-// Room management (keyed by mode:name to separate bonus vs mandatory)
-const rooms = new Map(); // `${mode}:${roomName}` -> Room
+const rooms = new Map();
 
 function getRoomKey(roomName, mode = 'normal') {
     return `${mode}:${roomName}`;
@@ -36,7 +36,6 @@ function getRoomKey(roomName, mode = 'normal') {
 
 app.use(express.static(publicPath));
 
-// Simple endpoint to fetch top scores (must be declared before catch-all)
 app.get('/api/scoreboard', async (req, res) => {
     try {
         const n = Math.max(1, Math.min(100, Number(req.query.n) || 20));
@@ -49,7 +48,6 @@ app.get('/api/scoreboard', async (req, res) => {
     }
 });
 
-// Endpoint to fetch top speed game scores
 app.get('/api/speed-scores', async (req, res) => {
     try {
         const n = Math.max(1, Math.min(10, Number(req.query.n) || 3));
@@ -57,20 +55,38 @@ app.get('/api/speed-scores', async (req, res) => {
         const scores = await getTopSpeedGameScores(n);
         res.json(scores);
     } catch (e) {
-        console.error('Error fetching speed game scores:', e);
         res.status(500).json({ error: 'failed' });
     }
 });
 
-// Test endpoint to manually trigger speed scores broadcast
+app.get('/api/reverse-scores', async (req, res) => {
+    try {
+        const n = Math.max(1, Math.min(10, Number(req.query.n) || 3));
+        res.set('Cache-Control', 'no-store');
+        const scores = await getTopReverseGameScores(n);
+        res.json(scores);
+    } catch (e) {
+        res.status(500).json({ error: 'failed' });
+    }
+});
+
+app.get('/api/newbrick-scores', async (req, res) => {
+    try {
+        const n = Math.max(1, Math.min(10, Number(req.query.n) || 3));
+        res.set('Cache-Control', 'no-store');
+        const scores = await getTopNewbrickGameScores(n);
+        res.json(scores);
+    } catch (e) {
+        res.status(500).json({ error: 'failed' });
+    }
+});
+
 app.post('/api/test-speed-broadcast', async (req, res) => {
     try {
         const scores = await getTopSpeedGameScores(3);
-        console.log('[TEST] Manually broadcasting speed scores:', scores);
         io.emit('speedScoresUpdated', scores);
         res.json({ success: true, scores });
     } catch (e) {
-        console.error('Error in test broadcast:', e);
         res.status(500).json({ error: 'failed' });
     }
 });
@@ -84,23 +100,17 @@ function serializePiece(piece) {
     return { shape: piece.shape, color: piece.color };
 }
 
-// Helper functions to choose the right game logic based on room mode
 
 function makePieceFromTetromino(t, roomMode = 'normal') {
     if (!t) return null;
     
     if (roomMode === 'bonus-reverse') {
-        // For reverse gravity, start pieces much higher to ensure full visibility
-        // Start at y=12 to ensure ALL pieces are fully visible
-        // Board is 20 rows (0-19), so y=12 gives us plenty of room for all piece types
-        return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 18,r: 0 };
+        return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 18, r: 0 };
     } else {
-        // Normal gravity - start at the top
         return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
     }
 }
 
-// Helper function for reverse gravity - allows pieces to move upward
 function canPlaceReverse(grid, piece, offsetX = 0, offsetY = 0) {
     if (!piece) return false;
     const height = grid.length;
@@ -149,11 +159,7 @@ async function checkGameEnd(room) {
     const activePlayers = room.getPlayers();
     if (activePlayers.length <= 1) {
         if (activePlayers.length === 1) {
-            // We have a winner!
             const winner = activePlayers[0];
-            console.log(`\n=== GAME ENDED ===`);
-            console.log(`Winner: ${winner.name}`);
-            console.log(`=== END GAME ===\n`);
             
             // Announce winner to all players
             room.getPlayers().forEach(player => {
@@ -167,8 +173,6 @@ async function checkGameEnd(room) {
                 try {
                     await updateScore(winner.name, winner.score || 0, true);
                     const snapshot = await getTopScores(5);
-                    console.log('[SCOREBOARD] Winner persisted:', winner.name, 'score=', winner.score || 0);
-                    console.log('[SCOREBOARD] Top 5 now:', JSON.stringify(snapshot));
                     // Emit scoreboard update immediately
                     const topScores = await getTopScores(10);
                     io.emit('scoreboardUpdated', topScores);
@@ -184,14 +188,31 @@ async function checkGameEnd(room) {
                 try {
                     await addSpeedGameScore(winner.name, winner.score || 0);
                     const speedScores = await getTopSpeedGameScores(3);
-                    console.log('[SPEED SCORES] Winner persisted:', winner.name, 'score=', winner.score || 0);
-                    console.log('[SPEED SCORES] Top 3 now:', JSON.stringify(speedScores));
-                    // Emit speed game scoreboard update
-                    console.log('[SPEED SCORES] Broadcasting speedScoresUpdated to all clients...');
                     io.emit('speedScoresUpdated', speedScores);
-                    console.log('[SPEED SCORES] Broadcast sent successfully');
                 } catch (e) {
                     console.error('[SPEED SCORES] Failed to persist winner score:', e?.message);
+                }
+            }
+
+            // Persist reverse game score if reverse mode
+            if (room.roomMode === 'bonus-reverse') {
+                try {
+                    await addReverseGameScore(winner.name, winner.score || 0);
+                    const reverseScores = await getTopReverseGameScores(3);
+                    io.emit('reverseScoresUpdated', reverseScores);
+                } catch (e) {
+                    console.error('[REVERSE SCORES] Failed to persist winner score:', e?.message);
+                }
+            }
+
+            // Persist newbrick game score if newbrick mode
+            if (room.roomMode === 'bonus-newbrick') {
+                try {
+                    await addNewbrickGameScore(winner.name, winner.score || 0);
+                    const newbrickScores = await getTopNewbrickGameScores(3);
+                    io.emit('newbrickScoresUpdated', newbrickScores);
+                } catch (e) {
+                    console.error('[NEWBRICK SCORES] Failed to persist winner score:', e?.message);
                 }
             }
             
@@ -200,9 +221,6 @@ async function checkGameEnd(room) {
             return true;
         } else {
             // No players left
-            console.log(`\n=== GAME ENDED ===`);
-            console.log(`No players remaining`);
-            console.log(`=== END GAME ===\n`);
             room.stopGame();
             return true;
         }
@@ -213,7 +231,6 @@ async function checkGameEnd(room) {
 async function handleGameTick(room) {
     if (!room || !room.gameStarted) return;
     
-    // Determine gravity direction based on room mode
     const gravityDirection = room.roomMode === 'bonus-reverse' ? -1 : 1;
     
     // Move pieces and give new pieces to players who need them individually
@@ -221,7 +238,7 @@ async function handleGameTick(room) {
         try {
         // Skip players without current piece (game ended)
         if (!player.currentPiece) {
-            return;
+            continue;
         }
         
         const grid = player.board.grid;
@@ -235,13 +252,6 @@ async function handleGameTick(room) {
             player.currentPiece = movePiece(player.currentPiece, 0, gravityDirection);
             if (room.speedMode) {
                 player.lastDropTime = now;
-                // Speed mode: per-player acceleration every 5 gravity drops
-                player.dropsSinceSpeedUp = (player.dropsSinceSpeedUp || 0) + 1;
-                if (player.dropsSinceSpeedUp % 5 === 0) {
-                    const prev = player.dropIntervalMs || room.gameSpeed;
-                    player.dropIntervalMs = Math.max(50, Math.floor(prev * 0.75));
-                    console.log(`Speed up for ${player.name}: ${prev}ms -> ${player.dropIntervalMs}ms after ${player.dropsSinceSpeedUp} gravity drops`);
-                }
             }
         } else if (!canFall) {
             // Piece needs to lock
@@ -250,45 +260,59 @@ async function handleGameTick(room) {
                 ? clearLinesReverse(locked) 
                 : clearLines(locked);
             player.board.grid = cleared;
-            // Bonus scoring only for bonus rooms
-            if (room.roomMode === 'bonus' && linesCleared > 0) {
+
+            if (room.speedMode) {
+                player.locksSinceSpeedUp = (player.locksSinceSpeedUp || 0) + 1;
+                if (player.locksSinceSpeedUp % 3 === 0) {
+                    const prev = player.dropIntervalMs || room.gameSpeed;
+                    player.dropIntervalMs = Math.max(20, Math.floor(prev * 0.85));
+                }
+                player.lastDropTime = Date.now();
+            }
+
+            if ((room.roomMode === 'bonus' || room.roomMode === 'bonus-reverse' || room.roomMode === 'bonus-newbrick') && linesCleared > 0) {
                 const add = linesCleared === 1 ? 100 : linesCleared === 2 ? 300 : linesCleared === 3 ? 500 : 800;
                 player.score = (player.score || 0) + add;
             }
             
-            // Distribute penalty lines to other players if lines were cleared
             if (linesCleared > 0) {
                 const penaltyLines = linesCleared - 1; // n-1 penalty lines
                 if (penaltyLines > 0) {
-                    console.log(`\n=== PENALTY LINE DISTRIBUTION ===`);
-                    console.log(`Player ${player.name} cleared ${linesCleared} lines, sending ${penaltyLines} penalty lines to opponents`);
-                    
                     for (const otherPlayer of room.getPlayers()) {
                         if (otherPlayer.socketId !== player.socketId) {
-                            console.log(`Adding ${penaltyLines} penalty lines to ${otherPlayer.name}`);
-                            otherPlayer.board.grid = gameLogic.addPenaltyLines(otherPlayer.board.grid, penaltyLines);
-                            // Adjust current falling piece upward to compensate for garbage push
+                            if (room.roomMode === 'bonus-reverse') {
+                                otherPlayer.board.grid = addPenaltyLinesReverse(otherPlayer.board.grid, penaltyLines);
+                            } else {
+                                otherPlayer.board.grid = addPenaltyLines(otherPlayer.board.grid, penaltyLines);
+                            }
                             if (otherPlayer.currentPiece) {
-                                let adjusted = { ...otherPlayer.currentPiece, y: otherPlayer.currentPiece.y - penaltyLines };
-                                // Try moving further up if still colliding, up to a small safety margin
-                                while (!gameLogic.canPlace(otherPlayer.board.grid, adjusted, 0, 0) && adjusted.y > -6) {
-                                    adjusted = { ...adjusted, y: adjusted.y - 1 };
-                                }
-                                if (gameLogic.canPlace(otherPlayer.board.grid, adjusted, 0, 0)) {
-                                    otherPlayer.currentPiece = adjusted;
+                                let adjusted;
+                                if (room.roomMode === 'bonus-reverse') {
+                                    adjusted = { ...otherPlayer.currentPiece, y: otherPlayer.currentPiece.y + penaltyLines };
+                                    while (!canPlaceReverse(otherPlayer.board.grid, adjusted, 0, 0) && adjusted.y < 25) {
+                                        adjusted = { ...adjusted, y: adjusted.y + 1 };
+                                    }
+                                    if (canPlaceReverse(otherPlayer.board.grid, adjusted, 0, 0)) {
+                                        otherPlayer.currentPiece = adjusted;
+                                    }
+                                } else {
+                                    adjusted = { ...otherPlayer.currentPiece, y: otherPlayer.currentPiece.y - penaltyLines };
+                                    while (!canPlace(otherPlayer.board.grid, adjusted, 0, 0) && adjusted.y > -6) {
+                                        adjusted = { ...adjusted, y: adjusted.y - 1 };
+                                    }
+                                    if (canPlace(otherPlayer.board.grid, adjusted, 0, 0)) {
+                                        otherPlayer.currentPiece = adjusted;
+                                    }
                                 }
                             }
                             
-                            // Send penalty notification to the player
                             otherPlayer.socket.emit('penaltyReceived', {
                                 lines: penaltyLines,
                                 fromPlayer: player.name
                             });
                             
-                            // Check if penalty lines caused game over
-                            if (!gameLogic.canPlace(otherPlayer.board.grid, otherPlayer.currentPiece, 0, 0)) {
-                                console.log(`Game Over for ${otherPlayer.name} due to penalty lines`);
-                                // Persist loser score in bonus rooms
+                            if (!canPlace(otherPlayer.board.grid, otherPlayer.currentPiece, 0, 0)) {
+                                // Persist loser score in bonus modes
                                 if (room.roomMode === 'bonus') {
                                     try {
                                         await updateScore(otherPlayer.name, otherPlayer.score || 0, false);
@@ -299,6 +323,22 @@ async function handleGameTick(room) {
                                         io.emit('scoreboardUpdated', topScores);
                                     } catch (e) {
                                         console.error('[SCOREBOARD] Failed to persist loser score:', e?.message);
+                                    }
+                                } else if (room.roomMode === 'bonus-reverse') {
+                                    try {
+                                        await addReverseGameScore(otherPlayer.name, otherPlayer.score || 0);
+                                        const reverseScores = await getTopReverseGameScores(3);
+                                        io.emit('reverseScoresUpdated', reverseScores);
+                                    } catch (e) {
+                                        console.error('[REVERSE SCORES] Failed to persist loser score:', e?.message);
+                                    }
+                                } else if (room.roomMode === 'bonus-newbrick') {
+                                    try {
+                                        await addNewbrickGameScore(otherPlayer.name, otherPlayer.score || 0);
+                                        const newbrickScores = await getTopNewbrickGameScores(3);
+                                        io.emit('newbrickScoresUpdated', newbrickScores);
+                                    } catch (e) {
+                                        console.error('[NEWBRICK SCORES] Failed to persist loser score:', e?.message);
                                     }
                                 }
                                 otherPlayer.socket.emit('gameOver');
@@ -313,66 +353,28 @@ async function handleGameTick(room) {
                             }
                         }
                     }
-                    console.log(`=== END PENALTY LINE DISTRIBUTION ===\n`);
                 }
             }
             
-            // Check if player needs a new sequence (reached end of current sequence)
-            if (player.sequenceIndex >= player.pieceSequence.length - 1) {
-                console.log(`\n=== REGENERATING SEQUENCE FOR ${player.name} ===`);
-                console.log(`Player ${player.name} reached end of sequence (${player.pieceSequence.length} pieces)`);
-                console.log(`Generating new 50-piece sequence for ${player.name}...`);
-                
-                // Generate new sequence for this player
-                player.pieceSequence = [];
-                const gameSeed = room.name.charCodeAt(0) + Date.now() + player.socketId.charCodeAt(0);
-                let randomSeed = gameSeed;
-                
-                const seededRandom = () => {
-                    randomSeed = (randomSeed * 1664525 + 1013904223) % Math.pow(2, 32);
-                    return randomSeed / Math.pow(2, 32);
-                };
-                
-                for (let i = 0; i < 50; i++) {
-                    player.pieceSequence.push(new Tetromino(null, seededRandom));
-                }
-                player.sequenceIndex = 0;
-                
-                console.log(`Generated new sequence for ${player.name} with ${player.pieceSequence.length} pieces`);
-                console.log(`First 10 pieces: ${player.pieceSequence.slice(0, 10).map(p => p.type).join(', ')}`);
-                console.log(`=== END SEQUENCE REGENERATION FOR ${player.name} ===\n`);
-            }
+            room.extendSequencesIfNeeded(50, 2);
             
-            // Give this player a new piece from their own sequence copy
             const newCurrentPiece = player.pieceSequence[player.sequenceIndex];
             const newNextPiece = player.pieceSequence[player.sequenceIndex + 1];
             
-            console.log(`\n=== INDIVIDUAL SEQUENCE COPY PIECE DISTRIBUTION ===`);
-            console.log(`Player ${player.name} piece locked, giving new piece from their own sequence copy`);
-            console.log(`Player ${player.name} sequence index: ${player.sequenceIndex}`);
-            console.log(`New current piece: ${newCurrentPiece.type}, new next piece: ${newNextPiece.type}`);
             
             player.currentPiece = newCurrentPiece ? makePieceFromTetromino(newCurrentPiece, room.roomMode) : null;
             player.nextPiece = newNextPiece;
             player.needsNewPiece = false;
             
-            // Advance this player's sequence index
             player.sequenceIndex += 1;
             
-            console.log(`Player ${player.name} got new piece: current=${newCurrentPiece.type}, next=${newNextPiece.type}`);
-            console.log(`Player ${player.name} sequence index advanced to: ${player.sequenceIndex}`);
-            console.log(`=== END INDIVIDUAL SEQUENCE COPY DISTRIBUTION ===\n`);
             
-            // Check for game over after assigning new piece
-            if (!gameLogic.canPlace(player.board.grid, player.currentPiece, 0, 0)) {
-                console.log(`Game Over for ${player.name}`);
-                // Persist loser score in bonus rooms
+            if (!canPlace(player.board.grid, player.currentPiece, 0, 0)) {
+                // Persist loser score in bonus modes
                 if (room.roomMode === 'bonus') {
                     try {
                         await updateScore(player.name, player.score || 0, false);
                         const snapshot = await getTopScores(5);
-                        console.log('[SCOREBOARD] Loser persisted:', player.name, 'score=', player.score || 0);
-                        console.log('[SCOREBOARD] Top 5 now:', JSON.stringify(snapshot));
                         // Emit scoreboard update immediately
                         const topScores = await getTopScores(10);
                         io.emit('scoreboardUpdated', topScores);
@@ -380,6 +382,22 @@ async function handleGameTick(room) {
                         io.emit('bonusScoreboardUpdated', topScores);
                     } catch (e) {
                         console.error('[SCOREBOARD] Failed to persist loser score:', e?.message);
+                    }
+                } else if (room.roomMode === 'bonus-reverse') {
+                    try {
+                        await addReverseGameScore(player.name, player.score || 0);
+                        const reverseScores = await getTopReverseGameScores(3);
+                        io.emit('reverseScoresUpdated', reverseScores);
+                    } catch (e) {
+                        console.error('[REVERSE SCORES] Failed to persist loser score:', e?.message);
+                    }
+                } else if (room.roomMode === 'bonus-newbrick') {
+                    try {
+                        await addNewbrickGameScore(player.name, player.score || 0);
+                        const newbrickScores = await getTopNewbrickGameScores(3);
+                        io.emit('newbrickScoresUpdated', newbrickScores);
+                    } catch (e) {
+                        console.error('[NEWBRICK SCORES] Failed to persist loser score:', e?.message);
                     }
                 }
                 player.socket.emit('gameOver');
@@ -400,7 +418,6 @@ async function handleGameTick(room) {
         }
     }
     
-    // Send board updates to all players
     room.getPlayers().forEach(player => {
         const boardWithPiece = player.currentPiece
             ? renderWithPiece(player.board.grid, player.currentPiece)
@@ -409,10 +426,6 @@ async function handleGameTick(room) {
             ? serializePiece(makePieceFromTetromino(player.nextPiece, room.roomMode))
             : null;
         
-        const curType = player.currentPiece ? player.currentPiece.type : 'none';
-        const nextType = player.nextPiece ? player.nextPiece.type : 'none';
-        console.log(`Sending to ${player.name}: current=${curType}, next=${nextType}`);
-        console.log(`Serialized next piece:`, nextPieceSerialized);
         
         player.socket.emit('updateBoard', {
             board: boardWithPiece,
@@ -420,7 +433,6 @@ async function handleGameTick(room) {
         });
     });
     
-    // Send spectrum updates to all players
     room.getPlayers().forEach(player => {
         const otherPlayers = room.getPlayers().filter(p => p.socketId !== player.socketId);
         const spectrums = otherPlayers.map(p => ({
@@ -429,7 +441,11 @@ async function handleGameTick(room) {
         }));
         
         player.socket.emit('roomUpdate', {
-            players: room.getPlayers().map(p => ({ name: p.name, isHost: p.socketId === room.host, score: room.roomMode === 'bonus' ? (p.score || 0) : undefined })),
+            players: room.getPlayers().map(p => ({ 
+                name: p.name, 
+                isHost: p.socketId === room.host, 
+                score: (room.roomMode === 'bonus' || room.roomMode === 'bonus-reverse' || room.roomMode === 'bonus-newbrick') ? (p.score || 0) : undefined 
+            })),
             spectrums: spectrums,
             gameStarted: room.gameStarted
         });
@@ -471,7 +487,11 @@ function handleSoftDropTick(player, roomMode = 'normal') {
                 }));
                 
                 p.socket.emit('roomUpdate', {
-                    players: room.getPlayers().map(pl => ({ name: pl.name, isHost: pl.socketId === room.host })),
+                    players: room.getPlayers().map(pl => ({ 
+                        name: pl.name, 
+                        isHost: pl.socketId === room.host,
+                        score: (room.roomMode === 'bonus' || room.roomMode === 'bonus-reverse' || room.roomMode === 'bonus-newbrick') ? (pl.score || 0) : undefined
+                    })),
                     spectrums: spectrums,
                     gameStarted: room.gameStarted
                 });
@@ -715,12 +735,29 @@ io.on('connection', (socket) => {
             if (room.speedMode) {
                 const now = Date.now();
                 room.getPlayers().forEach(p => {
-                    p.dropIntervalMs = room.gameSpeed;
+                    p.dropIntervalMs = Math.max(100, Math.floor(room.gameSpeed * 0.8));
                     p.lastDropTime = now;
                     p.dropsSinceSpeedUp = 0;
+                    p.locksSinceSpeedUp = 0;
                 });
+                // Speed mode: increase room tick frequency so per-player intervals can be effective
+                if (currentRoom && currentRoom === room) {
+                    if (currentRoom.gameLoop) clearInterval(currentRoom.gameLoop);
+                    currentRoom.gameLoop = setInterval(async () => {
+                        await handleGameTick(currentRoom);
+                    }, 50);
+                    console.log(`Speed mode enabled: room ${roomName} tick set to 50ms`);
+                }
+            } else {
+                // Restore default room tick frequency when disabling speed mode
+                if (currentRoom && currentRoom === room) {
+                    if (currentRoom.gameLoop) clearInterval(currentRoom.gameLoop);
+                    currentRoom.gameLoop = setInterval(async () => {
+                        await handleGameTick(currentRoom);
+                    }, currentRoom.gameSpeed);
+                    console.log(`Speed mode disabled: room ${roomName} tick restored to ${currentRoom.gameSpeed}ms`);
+                }
             }
-            console.log(`Speed mode for room ${roomName}: ${room.speedMode}`);
         } catch (e) {
             console.error('Failed to set speed mode', e);
         }

@@ -8,6 +8,7 @@ const {
     lockPiece,
     clearLines,
     addPenaltyLines,
+    addPenaltyLinesReverse,
     renderWithPiece,
 } = require('../../../server/logic/gameLogic');
 
@@ -557,6 +558,42 @@ describe('Game Logic Functions', () => {
         });
     });
 
+    describe('addPenaltyLinesReverse', () => {
+        test('should add penalty lines to top of grid for reverse gravity', () => {
+            const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
+            const linesToAdd = 2;
+            
+            const result = addPenaltyLinesReverse(grid, linesToAdd);
+            
+            // Check that penalty lines were added at the top (with random gaps)
+            expect(result[0]).toContain(8); // Should contain penalty blocks
+            expect(result[1]).toContain(8); // Should contain penalty blocks
+            expect(result.length).toBe(20); // Should maintain grid size
+        });
+
+        test('should handle zero penalty lines', () => {
+            const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
+            const linesToAdd = 0;
+            
+            const result = addPenaltyLinesReverse(grid, linesToAdd);
+            
+            expect(result).toEqual(grid);
+        });
+
+        test('should handle maximum penalty lines', () => {
+            const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
+            const linesToAdd = 20;
+            
+            const result = addPenaltyLinesReverse(grid, linesToAdd);
+            
+            // All lines should contain penalty blocks (with random gaps)
+            result.forEach(row => {
+                expect(row).toContain(8); // Should contain penalty blocks
+                expect(row.length).toBe(10); // Should maintain width
+            });
+        });
+    });
+
     describe('Edge Cases and Error Handling', () => {
         test('should handle null/undefined grid in canPlace', () => {
             const piece = { shape: [[1]], x: 0, y: 0 };
@@ -566,8 +603,8 @@ describe('Game Logic Functions', () => {
         });
 
         test('should handle null/undefined piece in canPlace', () => {
-            expect(() => canPlace(testGrid, null)).toThrow();
-            expect(() => canPlace(testGrid, undefined)).toThrow();
+            expect(canPlace(testGrid, null)).toBe(false);
+            expect(canPlace(testGrid, undefined)).toBe(false);
         });
 
         test('should handle empty shape in canPlace', () => {

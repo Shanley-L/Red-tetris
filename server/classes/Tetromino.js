@@ -36,12 +36,98 @@ const SHAPES = {
 
 const PIECE_TYPES = 'IOTLJSZ';
 
+// Alternate shape set for the "new bricks" bonus mode (7 new 4x4 forms)
+const NEWBRICK_SHAPES = {
+    // 0100
+    // 1110
+    // 0100
+    // 0000
+    'A': { shape: [
+        [0,1,0,0],
+        [1,1,1,0],
+        [0,1,0,0],
+        [0,0,0,0]
+    ], color: 'teal' },
+
+    // 1100
+    // 1110
+    // 0000
+    // 0000
+    'B': { shape: [
+        [1,1,0,0],
+        [1,1,1,0],
+        [0,0,0,0],
+        [0,0,0,0]
+    ], color: 'goldenrod' },
+
+    // 1110
+    // 1000
+    // 0100
+    // 0000
+    'C': { shape: [
+        [1,1,1,0],
+        [1,0,0,0],
+        [0,1,0,0],
+        [0,0,0,0]
+    ], color: 'magenta' },
+
+    // 0110
+    // 1100
+    // 0100
+    // 0000
+    'D': { shape: [
+        [0,1,1,0],
+        [1,1,0,0],
+        [0,1,0,0],
+        [0,0,0,0]
+    ], color: 'brown' },
+
+    // 1000
+    // 1100
+    // 0110
+    // 0010
+    'E': { shape: [
+        [1,0,0,0],
+        [1,1,0,0],
+        [0,1,1,0],
+        [0,0,1,0]
+    ], color: 'dodgerblue' },
+
+    // 1110
+    // 1010
+    // 1110
+    // 0000
+    'F': { shape: [
+        [1,1,1,0],
+        [1,0,1,0],
+        [1,1,1,0],
+        [0,0,0,0]
+    ], color: 'darkorange' },
+
+    // 1010
+    // 1110
+    // 0000
+    // 0000
+    'G': { shape: [
+        [1,0,1,0],
+        [1,1,1,0],
+        [0,0,0,0],
+        [0,0,0,0]
+    ], color: 'darkgreen' }
+};
+
+const NEWBRICK_TYPES = 'ABCDEFG';
+
 class Tetromino {
-    constructor(type, randomFn = Math.random) {
+    constructor(type, randomFn = Math.random, modeKey = 'classic') {
+        const useNewBrick = modeKey === 'bonus-newbrick';
+        const shapes = useNewBrick ? NEWBRICK_SHAPES : SHAPES;
+        const types = useNewBrick ? NEWBRICK_TYPES : PIECE_TYPES;
+
         if (!type) {
-            type = PIECE_TYPES[Math.floor(randomFn() * PIECE_TYPES.length)];
+            type = types[Math.floor(randomFn() * types.length)];
         }
-        const piece = SHAPES[type];
+        const piece = shapes[type];
 
         this.type = type;
         this.shape = piece.shape;

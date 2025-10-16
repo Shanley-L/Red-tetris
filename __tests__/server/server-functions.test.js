@@ -280,7 +280,6 @@ describe('Server Functions and Structure', () => {
 
         test('should test room management initialization', () => {
             expect(serverContent).toContain('const rooms = new Map()');
-            expect(serverContent).toContain('roomName -> Room');
         });
     });
 });
