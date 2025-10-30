@@ -247,10 +247,6 @@ const BonusGameReverse = () => {
           </aside>
           
           <div className="board-wrapper">
-            <div className="reverse-gravity-indicator">
-              <div className="gravity-icon">🔄</div>
-              <div className="gravity-text">REVERSE GRAVITY</div>
-            </div>
             <Board board={board} />
             {penaltyNotification && (
               <div className="penalty-notification">
