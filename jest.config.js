@@ -26,8 +26,6 @@ module.exports = {
     '!server/logic/BONUS/**',
     '!client/pages/BONUS/**',
     '!server/database.js',
-    '!server/scoreStore.js',
-    '!server/socket.js',
     '!**/node_modules/**',
     '!**/coverage/**',
     '!**/__tests__/**'

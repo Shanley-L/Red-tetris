@@ -36,90 +36,91 @@ const SHAPES = {
 
 const PIECE_TYPES = 'IOTLJSZ';
 
-// Alternate shape set for the "new bricks" bonus mode (7 new 4x4 forms)
 const NEWBRICK_SHAPES = {
-    // 0100
-    // 1110
-    // 0100
+    // 0110
+    // 1100
+    // 0000
     // 0000
     'A': { shape: [
-        [0,1,0,0],
-        [1,1,1,0],
-        [0,1,0,0],
-        [0,0,0,0]
-    ], color: 'teal' },
-
-    // 1100
-    // 1110
-    // 0000
-    // 0000
-    'B': { shape: [
+        [1,1,1,1],
         [1,1,0,0],
-        [1,1,1,0],
         [0,0,0,0],
         [0,0,0,0]
-    ], color: 'goldenrod' },
+    ], color: 'teal' }, // diagonale inversée du S
 
+    // 0100
     // 1110
     // 1000
+    // 0000
+    'B': { shape: [
+        [0,1,1,0],
+        [1,1,1,0],
+        [0,1,0,0],
+        [0,0,0,0]
+    ], color: 'goldenrod' }, // T modifié avec une queue
+
+    // 1110
+    // 0100
     // 0100
     // 0000
     'C': { shape: [
         [1,1,1,0],
-        [1,0,0,0],
+        [0,1,0,0],
         [0,1,0,0],
         [0,0,0,0]
-    ], color: 'magenta' },
+    ], color: 'magenta' }, // T long
 
     // 0110
-    // 1100
+    // 0110
     // 0100
     // 0000
     'D': { shape: [
         [0,1,1,0],
-        [1,1,0,0],
+        [0,1,1,0],
         [0,1,0,0],
-        [0,0,0,0]
-    ], color: 'brown' },
+        [0,1,0,0]
+    ], color: 'brown' }, // carré avec tige
 
-    // 1000
     // 1100
     // 0110
     // 0010
+    // 0000
     'E': { shape: [
-        [1,0,0,0],
         [1,1,0,0],
         [0,1,1,0],
-        [0,0,1,0]
-    ], color: 'dodgerblue' },
+        [0,0,1,0],
+        [0,0,0,0]
+    ], color: 'dodgerblue' }, // serpentin à 3 niveaux
 
     // 1110
-    // 1010
-    // 1110
+    // 0010
+    // 0010
     // 0000
     'F': { shape: [
         [1,1,1,0],
-        [1,0,1,0],
-        [1,1,1,0],
+        [0,0,1,0],
+        [0,0,1,0],
         [0,0,0,0]
-    ], color: 'darkorange' },
+    ], color: 'darkorange' }, // L étiré
 
-    // 1010
+    // 0100
     // 1110
-    // 0000
-    // 0000
+    // 0100
+    // 0100
     'G': { shape: [
-        [1,0,1,0],
-        [1,1,1,0],
         [0,0,0,0],
+        [1,1,1,0],
+        [0,1,0,0],
         [0,0,0,0]
-    ], color: 'darkgreen' }
+    ], color: 'darkgreen' } // T avec extension verticale
 };
 
 const NEWBRICK_TYPES = 'ABCDEFG';
 
 class Tetromino {
     constructor(type, randomFn = Math.random, modeKey = 'classic') {
+        /* istanbul ignore next */
+        // bonus-newbrick mode is out of scope for mandatory coverage
         const useNewBrick = modeKey === 'bonus-newbrick';
         const shapes = useNewBrick ? NEWBRICK_SHAPES : SHAPES;
         const types = useNewBrick ? NEWBRICK_TYPES : PIECE_TYPES;

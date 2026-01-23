@@ -15,6 +15,7 @@ class Room {
         this.gameSpeed = 1000; // ms between drops
         this.speedMode = false; // bonus: accelerate over time
         this.dropsSinceSpeedUp = 0; // count locked pieces
+        this.gameEnded = false; // Track if game has ended for relaunch
     }
 
     addPlayer(socketId, playerName) {
@@ -78,7 +79,10 @@ class Room {
     }
 
     canJoin() {
-        return !this.gameStarted && this.players.size < 2;
+        // Can join if:
+        // 1. Game hasn't started AND room isn't full
+        // 2. OR game has ended (allow rejoin for relaunch) AND room isn't full
+        return (!this.gameStarted || this.gameEnded) && this.players.size < 2;
     }
 
     startGame() {
@@ -106,6 +110,7 @@ class Room {
 
     stopGame() {
         this.gameStarted = false;
+        this.gameEnded = true; // Mark game as ended
         if (this.gameLoop) {
             clearInterval(this.gameLoop);
             this.gameLoop = null;
@@ -134,6 +139,43 @@ class Room {
         this.pieceSequence = [];
         this.currentPieceIndex = 0;
         this.dropsSinceSpeedUp = 0;
+    }
+
+    relaunchGame() {
+        if (!this.gameEnded) {
+            throw new RoomError('Game must be ended before relaunching');
+        }
+        
+        if (this.players.size === 0) {
+            throw new RoomError('Cannot relaunch game with no players');
+        }
+        
+        // Reset game state for relaunch
+        this.gameStarted = true;
+        this.gameEnded = false;
+        
+        // Generate new piece sequence and reset index
+        this.generatePieceSequence();
+        this.currentPieceIndex = 0;
+        
+        // Reset all players for new game
+        this.players.forEach(player => {
+            player.currentPiece = null;
+            player.nextPiece = null;
+            player.board = new Board();
+            player.pieceSequence = [];
+            player.sequenceIndex = 0;
+            player.score = 0;
+            player.isSoftDropping = false;
+            player.dropIntervalMs = this.gameSpeed;
+            player.lastDropTime = Date.now();
+            player.dropsSinceSpeedUp = 0;
+            player.locksSinceSpeedUp = 0;
+        });
+        
+        // Initialize pieces for all players
+        this.initializePieces();
+        return true;
     }
 
     generatePieceSequence() {

@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
+import socketService from '../services/socketService';
 import Board from '../components/Board';
 import NextPiece from '../components/NextPiece';
 import './GamePage.css';
-
-// Socket will be instantiated when the page mounts, not at import time
 
 const GamePage = () => {
   const { roomName, playerName } = useParams();
@@ -26,15 +24,13 @@ const GamePage = () => {
   const gameStartedRef = useRef(false);
 
   const joinedRef = useRef(false);
-  const socketRef = useRef(null);
 
   useEffect(() => {
-    if (!socketRef.current) {
-      socketRef.current = io();
-    }
-    const socket = socketRef.current;
-    if (!joinedRef.current && !gameStarted) {
-      socket.emit('joinRoom', { roomName, playerName, mode: 'normal' });
+    // Initialize socket and join room
+    socketService.initSocket();
+    
+    if (!joinedRef.current) {
+      socketService.joinRoom(roomName, playerName, 'normal');
       joinedRef.current = true;
     }
 
@@ -48,12 +44,12 @@ const GamePage = () => {
         ' ': 'hardDrop'
       };
       const dir = directions[event.key];
-      if (dir && gameStartedRef.current) socket.emit('move', { direction: dir });
+      if (dir && gameStartedRef.current) socketService.movePiece(dir);
     };
 
     const handleKeyUp = (event) => {
       if (event.key === 'ArrowDown') {
-        socket.emit('stopSoftDrop');
+        socketService.stopSoftDrop();
       }
     };
 
@@ -64,74 +60,69 @@ const GamePage = () => {
       currentApp.addEventListener('keyup', handleKeyUp);
     }
 
-    socket.on('updateBoard', ({ board, nextPiece }) => {
+    // Subscribe to socket events
+    const unsubUpdateBoard = socketService.onUpdateBoard(({ board, nextPiece }) => {
       setBoard(board);
       setNextPiece(nextPiece);
     });
 
-    socket.on('roomUpdate', ({ players, spectrums, gameStarted }) => {
+    const unsubRoomUpdate = socketService.onRoomUpdate(({ players, spectrums, gameStarted }) => {
       setPlayers(players);
       setSpectrums(spectrums);
       setGameStarted(gameStarted);
       setIsHost(players.find(p => p.name === playerName)?.isHost || false);
     });
 
-    socket.on('joinError', ({ message, code }) => {
+    const unsubJoinError = socketService.onJoinError(({ message, code }) => {
       setError(`${message} (${code})`);
     });
 
-    socket.on('moveError', ({ message, code }) => {
+    const unsubMoveError = socketService.onMoveError(({ message, code }) => {
       console.error(`Move error: ${message} (${code})`);
-      // Could show a toast notification here
     });
 
-    socket.on('gameOver', () => {
+    const unsubGameOver = socketService.onGameOver(() => {
       setGameEnded(true);
       setIsEliminated(true);
       setIsWinner(false);
       setGameStarted(false);
-      socket.emit('leaveRoom');
+      socketService.leaveRoom();
     });
 
-    socket.on('gameEnd', ({ winner, isWinner }) => {
+    const unsubGameEnd = socketService.onGameEnd(({ winner, isWinner }) => {
       setGameEnded(true);
       setWinner(winner);
       setIsWinner(isWinner);
       setGameStarted(false);
-      socket.emit('leaveRoom');
     });
 
-    socket.on('penaltyReceived', ({ lines, fromPlayer }) => {
+    const unsubPenaltyReceived = socketService.onPenaltyReceived(({ lines, fromPlayer }) => {
       setPenaltyNotification({
         lines,
         fromPlayer,
         timestamp: Date.now()
       });
       
-      // Auto-hide notification after 3 seconds
       setTimeout(() => {
         setPenaltyNotification(null);
       }, 3000);
     });
 
-    socket.on('disconnect', () => {
+    const unsubDisconnect = socketService.onDisconnect(() => {
       console.log('Socket disconnected during game');
-      // Don't try to reconnect if game is in progress
-      if (gameStarted) {
-        console.log('Game in progress, not attempting reconnection');
-      }
     });
 
     return () => {
-      socket.off('updateBoard');
-      socket.off('roomUpdate');
-      socket.off('joinError');
-      socket.off('moveError');
-      socket.off('gameOver');
-      socket.off('gameEnd');
-      socket.off('penaltyReceived');
-      // Defer closing the connection; server may be down after game ends
-      // Leave listeners cleaned.
+      // Cleanup event listeners
+      unsubUpdateBoard?.();
+      unsubRoomUpdate?.();
+      unsubJoinError?.();
+      unsubMoveError?.();
+      unsubGameOver?.();
+      unsubGameEnd?.();
+      unsubPenaltyReceived?.();
+      unsubDisconnect?.();
+
       if (currentApp) {
         currentApp.removeEventListener('keydown', handleKeyDown);
         currentApp.removeEventListener('keyup', handleKeyUp);
@@ -140,12 +131,16 @@ const GamePage = () => {
   }, [roomName, playerName]);
 
   const handleLeave = () => {
-    socketRef.current?.emit('leaveRoom');
+    socketService.leaveRoom();
     navigate('/');
   };
 
   const handleStartGame = () => {
-    socketRef.current?.emit('startGame');
+    socketService.startGame();
+  };
+
+  const handleRelaunchGame = () => {
+    socketService.relaunchGame();
   };
 
   // Keep a ref in sync with gameStarted state for event handlers
@@ -167,8 +162,6 @@ const GamePage = () => {
   }
 
   if (gameEnded) {
-    // inform server that this client is leaving the room when the end screen is shown
-    socketRef.current?.emit('leaveRoom');
     return (
       <div className="game-page">
         <div className="content">
@@ -177,6 +170,11 @@ const GamePage = () => {
               <>
                 <h2>🎉 You Won! 🎉</h2>
                 <p>Congratulations! You are the last player standing!</p>
+                {isHost && (
+                  <button className="relaunch-button" onClick={handleRelaunchGame}>
+                    Relaunch Game
+                  </button>
+                )}
               </>
             ) : isEliminated ? (
               <>

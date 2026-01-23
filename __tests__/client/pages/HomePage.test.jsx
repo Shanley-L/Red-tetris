@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import HomePage from '../../../client/pages/HomePage';
 
 // Mock useNavigate
@@ -12,9 +12,9 @@ jest.mock('react-router-dom', () => ({
 
 const renderHomePage = () => {
     return render(
-        <BrowserRouter>
+        <HashRouter>
             <HomePage />
-        </BrowserRouter>
+        </HashRouter>
     );
 };
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import BonusHomePage from './pages/BONUS/BonusHomePage';
 import GamePage from './pages/GamePage';
@@ -12,7 +12,7 @@ import './pages/HomePage.css';
 const container = document.getElementById('root');
 const root = createRoot(container);
 root.render(
-  <Router>
+  <HashRouter>
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/bonus" element={<BonusHomePage />} />
@@ -21,6 +21,6 @@ root.render(
       <Route path="/bonus-newbrick/:roomName/:playerName" element={<BonusGameNewbrick />} />
       <Route path="/:roomName/:playerName" element={<GamePage />} />
     </Routes>
-  </Router>
+  </HashRouter>
 );
 

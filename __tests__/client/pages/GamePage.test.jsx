@@ -1,19 +1,34 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 
-// Mock socket.io-client
-jest.mock('socket.io-client', () => {
-    return jest.fn(() => ({
-        emit: jest.fn(),
-        on: jest.fn(),
-        off: jest.fn(),
+// Mock socketService
+jest.mock('../../../client/services/socketService', () => ({
+    __esModule: true,
+    default: {
+        initSocket: jest.fn(),
+        getSocket: jest.fn(),
         disconnect: jest.fn(),
-        connected: true,
-        id: 'test-socket-id'
-    }));
-});
+        joinRoom: jest.fn(),
+        startGame: jest.fn(),
+        relaunchGame: jest.fn(),
+        movePiece: jest.fn(),
+        stopSoftDrop: jest.fn(),
+        leaveRoom: jest.fn(),
+        setSpeedMode: jest.fn(),
+        onUpdateBoard: jest.fn(),
+        onRoomUpdate: jest.fn(),
+        onGameStart: jest.fn(),
+        onGameEnd: jest.fn(),
+        onGameOver: jest.fn(),
+        onPenaltyReceived: jest.fn(),
+        onJoinError: jest.fn(),
+        onMoveError: jest.fn(),
+        onRelaunchError: jest.fn(),
+        onDisconnect: jest.fn(),
+    },
+}));
 
 // Mock react-router-dom
 const mockNavigate = jest.fn();
@@ -23,54 +38,78 @@ jest.mock('react-router-dom', () => ({
     useNavigate: () => mockNavigate,
 }));
 
-// Import GamePage component
+// Import GamePage and socketService
 import GamePage from '../../../client/pages/GamePage';
+import socketService from '../../../client/services/socketService';
 
 describe('GamePage Component', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        // Default mock implementations
+        socketService.onUpdateBoard.mockReturnValue(jest.fn());
+        socketService.onRoomUpdate.mockReturnValue(jest.fn());
+        socketService.onGameStart.mockReturnValue(jest.fn());
+        socketService.onGameEnd.mockReturnValue(jest.fn());
+        socketService.onGameOver.mockReturnValue(jest.fn());
+        socketService.onPenaltyReceived.mockReturnValue(jest.fn());
+        socketService.onJoinError.mockReturnValue(jest.fn());
+        socketService.onMoveError.mockReturnValue(jest.fn());
+        socketService.onRelaunchError.mockReturnValue(jest.fn());
+        socketService.onDisconnect.mockReturnValue(jest.fn());
+    });
+
     test('should render GamePage component', () => {
         render(
-            <BrowserRouter>
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
         );
         
-        // Just check that the component renders without crashing
         expect(document.body).toBeInTheDocument();
     });
 
-    test('should import GamePage without errors', () => {
-        expect(() => {
-            require('../../../client/pages/GamePage');
-        }).not.toThrow();
-    });
-
-    test('should have GamePage component available', () => {
-        expect(GamePage).toBeDefined();
-    });
-
-    test('should handle GamePage module structure', () => {
-        expect(typeof GamePage).toBe('function');
-    });
-
-    test('should render basic game page elements', () => {
+    test('should render main game page sections', () => {
         render(
-            <BrowserRouter>
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
         );
         
-        // Check for basic elements that should always be present
-        expect(screen.getByText(/Room: testRoom/i)).toBeInTheDocument();
-        expect(screen.getByText(/Player: testPlayer/i)).toBeInTheDocument();
-        expect(screen.getByText('Leave Room')).toBeInTheDocument();
-        expect(screen.getByText('Controls')).toBeInTheDocument();
+        // Check for main layout elements
+        expect(document.querySelector('.game-page')).toBeInTheDocument();
+        expect(document.querySelector('.game-header')).toBeInTheDocument();
+        expect(document.querySelector('.room-info')).toBeInTheDocument();
+        expect(document.querySelector('.board-wrapper')).toBeInTheDocument();
+        expect(document.querySelector('.side-left')).toBeInTheDocument();
+        expect(document.querySelector('.side-right')).toBeInTheDocument();
     });
 
-    test('should render control instructions', () => {
+    test('should render header with game title', () => {
         render(
-            <BrowserRouter>
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
+        );
+        
+        expect(screen.getByText('Red Tetris')).toBeInTheDocument();
+    });
+
+    test('should display room and player info', () => {
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+        
+        expect(screen.getByText(/Room: testRoom/i)).toBeInTheDocument();
+        expect(screen.getByText(/Player: testPlayer/i)).toBeInTheDocument();
+    });
+
+    test('should display control instructions', () => {
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
         );
         
         expect(screen.getByText('← →: Move')).toBeInTheDocument();
@@ -79,563 +118,512 @@ describe('GamePage Component', () => {
         expect(screen.getByText('Space: Hard Drop')).toBeInTheDocument();
     });
 
-    test('should render game header', () => {
+    test('should have leave room button', () => {
         render(
-            <BrowserRouter>
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
         );
         
-        expect(screen.getByText('Red Tetris')).toBeInTheDocument();
+        expect(screen.getByText('Leave Room')).toBeInTheDocument();
     });
 
-    test('should render players list section', () => {
+    test('should call joinRoom on component mount', () => {
         render(
-            <BrowserRouter>
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
         );
-        
-        expect(screen.getByText(/Players \(/i)).toBeInTheDocument();
+
+        expect(socketService.joinRoom).toHaveBeenCalledWith('testRoom', 'testPlayer', 'normal');
     });
 
-    test('should handle component mounting', () => {
-        const { container } = render(
-            <BrowserRouter>
+    test('should register socket event listeners on mount', () => {
+        render(
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
         );
-        
-        expect(container).toBeInTheDocument();
+
+        // Check that at least some listeners are registered
+        expect(socketService.onUpdateBoard).toHaveBeenCalled();
+        expect(socketService.onRoomUpdate).toHaveBeenCalled();
     });
 
-    test('should handle component unmounting', () => {
+    test('should show start game button when host and game not started', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: false
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText('Start Game')).toBeInTheDocument();
+    });
+
+    test('should not show start game button when not host', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: false }],
+                spectrums: [],
+                gameStarted: false
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.queryByText('Start Game')).not.toBeInTheDocument();
+    });
+
+    test('should call startGame when start button clicked', async () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: false
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const startButton = screen.getByText('Start Game');
+        fireEvent.click(startButton);
+
+        expect(socketService.startGame).toHaveBeenCalled();
+    });
+
+    test('should show game in progress message when game started', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: true
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText('Game in Progress')).toBeInTheDocument();
+    });
+
+    test('should call leaveRoom when leave button clicked', async () => {
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const leaveButton = screen.getByText('Leave Room');
+        fireEvent.click(leaveButton);
+
+        expect(socketService.leaveRoom).toHaveBeenCalled();
+    });
+
+    test('should navigate to home after leaving room', async () => {
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const leaveButton = screen.getByText('Leave Room');
+        fireEvent.click(leaveButton);
+
+        await waitFor(() => {
+            expect(mockNavigate).toHaveBeenCalledWith('/');
+        });
+    });
+
+    test('should display error message when join error occurs', () => {
+        socketService.onJoinError.mockImplementation((callback) => {
+            callback({ message: 'Room is full', code: 'ROOM_FULL' });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText(/Room is full/i)).toBeInTheDocument();
+    });
+
+    test('should display win screen when player won', () => {
+        socketService.onGameEnd.mockImplementation((callback) => {
+            callback({ winner: 'testPlayer', isWinner: true });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText(/You Won/i)).toBeInTheDocument();
+        expect(screen.getByText(/Congratulations/i)).toBeInTheDocument();
+    });
+
+    test('should display loss screen when player lost', () => {
+        socketService.onGameEnd.mockImplementation((callback) => {
+            callback({ winner: 'otherPlayer', isWinner: false });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText(/Game Over/i)).toBeInTheDocument();
+    });
+
+    test('should display elimination screen when player eliminated', () => {
+        socketService.onGameOver.mockImplementation((callback) => {
+            callback();
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText(/You Were Eliminated/i)).toBeInTheDocument();
+    });
+
+    test('should show relaunch button when host and won', async () => {
+        socketService.onGameEnd.mockImplementation((callback) => {
+            callback({ winner: 'testPlayer', isWinner: true });
+            return jest.fn();
+        });
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: false
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('Relaunch Game')).toBeInTheDocument();
+        });
+    });
+
+    test('should call relaunchGame when relaunch button clicked', async () => {
+        socketService.onGameEnd.mockImplementation((callback) => {
+            callback({ winner: 'testPlayer', isWinner: true });
+            return jest.fn();
+        });
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: false
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const relaunchButton = screen.getByText('Relaunch Game');
+        fireEvent.click(relaunchButton);
+
+        expect(socketService.relaunchGame).toHaveBeenCalled();
+    });
+
+    test('should display penalty notification when received', async () => {
+        socketService.onPenaltyReceived.mockImplementation((callback) => {
+            callback({ lines: 2, fromPlayer: 'opponent' });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText(/2 LINE PENALTY/i)).toBeInTheDocument();
+            expect(screen.getByText(/from opponent/i)).toBeInTheDocument();
+        });
+    });
+
+    test('should move piece left with ArrowLeft key', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: true
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const gameContainer = document.querySelector('[tabindex="0"]');
+        fireEvent.keyDown(gameContainer, { key: 'ArrowLeft' });
+
+        expect(socketService.movePiece).toHaveBeenCalledWith('left');
+    });
+
+    test('should move piece right with ArrowRight key', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: true
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const gameContainer = document.querySelector('[tabindex="0"]');
+        fireEvent.keyDown(gameContainer, { key: 'ArrowRight' });
+
+        expect(socketService.movePiece).toHaveBeenCalledWith('right');
+    });
+
+    test('should rotate piece with ArrowUp key', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: true
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const gameContainer = document.querySelector('[tabindex="0"]');
+        fireEvent.keyDown(gameContainer, { key: 'ArrowUp' });
+
+        expect(socketService.movePiece).toHaveBeenCalledWith('rotate');
+    });
+
+    test('should soft drop with ArrowDown key', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: true
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const gameContainer = document.querySelector('[tabindex="0"]');
+        fireEvent.keyDown(gameContainer, { key: 'ArrowDown' });
+
+        expect(socketService.movePiece).toHaveBeenCalledWith('down');
+    });
+
+    test('should stop soft drop with ArrowDown key up', () => {
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const gameContainer = document.querySelector('[tabindex="0"]');
+        fireEvent.keyUp(gameContainer, { key: 'ArrowDown' });
+
+        expect(socketService.stopSoftDrop).toHaveBeenCalled();
+    });
+
+    test('should hard drop with Space key', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: true
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        const gameContainer = document.querySelector('[tabindex="0"]');
+        fireEvent.keyDown(gameContainer, { key: ' ' });
+
+        expect(socketService.movePiece).toHaveBeenCalledWith('hardDrop');
+    });
+
+    test('should display NextPiece component', () => {
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        // NextPiece should be in the left sidebar
+        expect(document.querySelector('.side-left .card')).toBeInTheDocument();
+    });
+
+    test('should display Board component in center', () => {
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        // Board wrapper should be in center
+        expect(document.querySelector('.board-wrapper')).toBeInTheDocument();
+    });
+
+    test('should display controls card in right sidebar', () => {
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        // Controls card should be in right sidebar
+        expect(document.querySelector('.side-right .controls')).toBeInTheDocument();
+        expect(screen.getByText('Controls')).toBeInTheDocument();
+    });
+
+    test('should handle component unmounting without errors', () => {
         const { unmount } = render(
-            <BrowserRouter>
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
         );
         
         expect(() => unmount()).not.toThrow();
     });
 
-    test('should render game layout structure', () => {
+    test('should update board when onUpdateBoard callback fired', () => {
+        const mockBoard = [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+        ];
+
+        socketService.onUpdateBoard.mockImplementation((callback) => {
+            callback({
+                board: mockBoard,
+                nextPiece: 'I',
+                score: 100,
+                lines: 0
+            });
+            return jest.fn();
+        });
+
         render(
-            <BrowserRouter>
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
         );
-        
-        // Check for main layout elements
-        const gamePage = document.querySelector('.game-page');
-        expect(gamePage).toBeInTheDocument();
-        
-        const content = document.querySelector('.content');
-        expect(content).toBeInTheDocument();
+
+        expect(socketService.onUpdateBoard).toHaveBeenCalled();
     });
 
-    test('should render side panels', () => {
+    test('should display players count when available', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [
+                    { name: 'testPlayer', isHost: true }
+                ],
+                spectrums: [],
+                gameStarted: false
+            });
+            return jest.fn();
+        });
+
         render(
-            <BrowserRouter>
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
         );
-        
-        // Check for side panels
-        const sideLeft = document.querySelector('.side-left');
-        const sideRight = document.querySelector('.side-right');
-        
-        expect(sideLeft).toBeInTheDocument();
-        expect(sideRight).toBeInTheDocument();
+
+        // Check for players header
+        expect(screen.getByText(/Players/i)).toBeInTheDocument();
     });
 
-    test('should render board wrapper', () => {
+    test('should display both players in players list', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [
+                    { name: 'testPlayer', isHost: true },
+                    { name: 'opponent', isHost: false }
+                ],
+                spectrums: [],
+                gameStarted: false
+            });
+            return jest.fn();
+        });
+
         render(
-            <BrowserRouter>
+            <HashRouter>
                 <GamePage />
-            </BrowserRouter>
+            </HashRouter>
         );
-        
-        const boardWrapper = document.querySelector('.board-wrapper');
-        expect(boardWrapper).toBeInTheDocument();
-    });
 
-    test('should render game header elements', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        const gameHeader = document.querySelector('.game-header');
-        expect(gameHeader).toBeInTheDocument();
-        
-        const brand = document.querySelector('.brand');
-        expect(brand).toBeInTheDocument();
-        
-        const meta = document.querySelector('.meta');
-        expect(meta).toBeInTheDocument();
-    });
-
-    test('should render room info section', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        const roomInfo = document.querySelector('.room-info');
-        expect(roomInfo).toBeInTheDocument();
-        
-        const playersList = document.querySelector('.players-list');
-        expect(playersList).toBeInTheDocument();
-    });
-
-    test('should render game layout sections', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        const gameLayout = document.querySelector('.game-layout');
-        expect(gameLayout).toBeInTheDocument();
-    });
-
-    test('should render card elements', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        const cards = document.querySelectorAll('.card');
-        expect(cards.length).toBeGreaterThan(0);
-    });
-
-    test('should render controls card', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        const controlsCard = document.querySelector('.controls');
-        expect(controlsCard).toBeInTheDocument();
-    });
-
-    test('should handle component props', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with default props
-        expect(GamePage).toBeDefined();
-    });
-
-    test('should handle component state initialization', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should initialize with default state
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should render next piece section', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // NextPiece component should be rendered
-        const nextPieceSection = document.querySelector('.side-left .card');
-        expect(nextPieceSection).toBeInTheDocument();
-    });
-
-    test('should render board component', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Board component should be rendered
-        const boardWrapper = document.querySelector('.board-wrapper');
-        expect(boardWrapper).toBeInTheDocument();
-    });
-
-    test('should handle component lifecycle', () => {
-        const { container, unmount } = render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        expect(container).toBeInTheDocument();
-        
-        // Test unmounting
-        unmount();
-        
-        // Component should unmount without errors
-        expect(true).toBe(true);
-    });
-
-    test('should render all required sections', () => {
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Check for all main sections
-        expect(document.querySelector('.game-page')).toBeInTheDocument();
-        expect(document.querySelector('.content')).toBeInTheDocument();
-        expect(document.querySelector('.game-header')).toBeInTheDocument();
-        expect(document.querySelector('.room-info')).toBeInTheDocument();
-        expect(document.querySelector('.game-layout')).toBeInTheDocument();
-        expect(document.querySelector('.side-left')).toBeInTheDocument();
-        expect(document.querySelector('.side-right')).toBeInTheDocument();
-        expect(document.querySelector('.board-wrapper')).toBeInTheDocument();
-    });
-
-    test('should handle component rendering without errors', () => {
-        expect(() => {
-            render(
-                <BrowserRouter>
-                    <GamePage />
-                </BrowserRouter>
-            );
-        }).not.toThrow();
-    });
-
-    test('should render component with correct structure', () => {
-        const { container } = render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Check component structure
-        expect(container.firstChild).toBeInTheDocument();
-        expect(container.firstChild.classList.contains('game-page')).toBe(true);
-    });
-
-    test('should handle multiple renders', () => {
-        const { rerender } = render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Rerender component
-        rerender(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should render component consistently', () => {
-        const { container: container1 } = render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        const { container: container2 } = render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Both renders should produce similar structure
-        expect(container1.firstChild).toBeInTheDocument();
-        expect(container2.firstChild).toBeInTheDocument();
-    });
-
-    test('should handle component with different props', () => {
-        // Test with different route params
-        jest.doMock('react-router-dom', () => ({
-            ...jest.requireActual('react-router-dom'),
-            useParams: () => ({ roomName: 'differentRoom', playerName: 'differentPlayer' }),
-            useNavigate: () => mockNavigate,
-        }));
-        
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should render component with minimal setup', () => {
-        // Test with minimal setup
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Should render without crashing
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component initialization', () => {
-        // Test component initialization
-        const component = <GamePage />;
-        expect(component).toBeDefined();
-        expect(component.type).toBe(GamePage);
-    });
-
-    test('should handle component export', () => {
-        // Test component export
-        expect(GamePage).toBeDefined();
-        expect(typeof GamePage).toBe('function');
-    });
-
-    test('should handle component import', () => {
-        // Test component import
-        expect(() => {
-            require('../../../client/pages/GamePage');
-        }).not.toThrow();
-    });
-
-    test('should handle component module structure', () => {
-        // Test component module structure
-        const GamePageModule = require('../../../client/pages/GamePage');
-        expect(GamePageModule).toBeDefined();
-        expect(GamePageModule.default).toBeDefined();
-    });
-
-    test('should handle component with React imports', () => {
-        // Test that component uses React properly
-        expect(GamePage).toBeDefined();
-        expect(typeof GamePage).toBe('function');
-    });
-
-    test('should handle component with hooks', () => {
-        // Test that component uses hooks properly
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with hooks
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with state', () => {
-        // Test that component manages state properly
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with state
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with effects', () => {
-        // Test that component uses effects properly
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with effects
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with refs', () => {
-        // Test that component uses refs properly
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with refs
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with event handlers', () => {
-        // Test that component has event handlers
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with event handlers
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with conditional rendering', () => {
-        // Test that component handles conditional rendering
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with conditional rendering
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with list rendering', () => {
-        // Test that component handles list rendering
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with list rendering
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with form elements', () => {
-        // Test that component handles form elements
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with form elements
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with navigation', () => {
-        // Test that component handles navigation
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with navigation
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with routing', () => {
-        // Test that component handles routing
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with routing
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with socket integration', () => {
-        // Test that component handles socket integration
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with socket integration
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with game logic', () => {
-        // Test that component handles game logic
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with game logic
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with UI components', () => {
-        // Test that component handles UI components
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with UI components
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with styling', () => {
-        // Test that component handles styling
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with styling
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with accessibility', () => {
-        // Test that component handles accessibility
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with accessibility
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with performance', () => {
-        // Test that component handles performance
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with performance
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with error boundaries', () => {
-        // Test that component handles error boundaries
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with error boundaries
-        expect(document.body).toBeInTheDocument();
-    });
-
-    test('should handle component with testing', () => {
-        // Test that component handles testing
-        render(
-            <BrowserRouter>
-                <GamePage />
-            </BrowserRouter>
-        );
-        
-        // Component should render with testing
-        expect(document.body).toBeInTheDocument();
+        // Check for player divs in the players list
+        const playerDivs = document.querySelectorAll('.player');
+        expect(playerDivs.length).toBeGreaterThanOrEqual(1);
     });
 });

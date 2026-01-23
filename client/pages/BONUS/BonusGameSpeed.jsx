@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
+import socketService from '../../services/socketService';
 import Board from '../../components/Board';
 import NextPiece from '../../components/NextPiece';
 import '../GamePage.css';
@@ -25,16 +25,11 @@ const BonusGameSpeed = () => {
   const appRef = useRef(null);
   const gameStartedRef = useRef(false);
   const joinedRef = useRef(false);
-  const socketRef = useRef(null);
 
   useEffect(() => {
-    if (!socketRef.current) {
-      socketRef.current = io();
-    }
-    const socket = socketRef.current;
-
-    if (!joinedRef.current && !gameStarted) {
-      socket.emit('joinRoom', { roomName, playerName, mode: 'bonus' });
+    socketService.initSocket();
+    if (!joinedRef.current) {
+      socketService.joinRoom(roomName, playerName, 'bonus');
       joinedRef.current = true;
     }
 
@@ -48,12 +43,12 @@ const BonusGameSpeed = () => {
         ' ': 'hardDrop'
       };
       const dir = directions[event.key];
-      if (dir && gameStartedRef.current) socket.emit('move', { direction: dir });
+      if (dir && gameStartedRef.current) socketService.movePiece(dir);
     };
 
     const handleKeyUp = (event) => {
       if (event.key === 'ArrowDown') {
-        socket.emit('stopSoftDrop');
+        socketService.stopSoftDrop();
       }
     };
 
@@ -64,12 +59,12 @@ const BonusGameSpeed = () => {
       currentApp.addEventListener('keyup', handleKeyUp);
     }
 
-    socket.on('updateBoard', ({ board, nextPiece }) => {
+    const unsubUpdateBoard = socketService.onUpdateBoard(({ board, nextPiece }) => {
       setBoard(board);
       setNextPiece(nextPiece);
     });
 
-    socket.on('roomUpdate', ({ players, spectrums, gameStarted }) => {
+    const unsubRoomUpdate = socketService.onRoomUpdate(({ players, spectrums, gameStarted }) => {
       setPlayers(players);
       const map = {};
       players.forEach(p => { if (typeof p.score === 'number') map[p.name] = p.score; });
@@ -79,36 +74,36 @@ const BonusGameSpeed = () => {
       setIsHost(players.find(p => p.name === playerName)?.isHost || false);
     });
 
-    socket.on('joinError', ({ message, code }) => {
+    const unsubJoinError = socketService.onJoinError(({ message, code }) => {
       setError(`${message} (${code})`);
     });
 
-    socket.on('moveError', ({ message, code }) => {
+    const unsubMoveError = socketService.onMoveError(({ message, code }) => {
       console.error(`Move error: ${message} (${code})`);
     });
 
-    socket.on('gameOver', () => {
+    const unsubGameOver = socketService.onGameOver(() => {
       setGameEnded(true);
       setIsEliminated(true);
       setIsWinner(false);
       setGameStarted(false);
-      socket.emit('leaveRoom');
+      socketService.leaveRoom();
     });
 
-    socket.on('gameEnd', ({ winner, isWinner }) => {
+    const unsubGameEnd = socketService.onGameEnd(({ winner, isWinner }) => {
       setGameEnded(true);
       setWinner(winner);
       setIsWinner(isWinner);
       setGameStarted(false);
-      socket.emit('leaveRoom');
+      socketService.leaveRoom();
     });
 
-    socket.on('penaltyReceived', ({ lines, fromPlayer }) => {
+    const unsubPenaltyReceived = socketService.onPenaltyReceived(({ lines, fromPlayer }) => {
       setPenaltyNotification({ lines, fromPlayer, timestamp: Date.now() });
       setTimeout(() => setPenaltyNotification(null), 3000);
     });
 
-    socket.on('disconnect', () => {
+    const unsubDisconnect = socketService.onDisconnect(() => {
       console.log('Socket disconnected during bonus game');
       // Don't try to reconnect if game is in progress
       if (gameStarted) {
@@ -117,13 +112,14 @@ const BonusGameSpeed = () => {
     });
 
     return () => {
-      socket.off('updateBoard');
-      socket.off('roomUpdate');
-      socket.off('joinError');
-      socket.off('moveError');
-      socket.off('gameOver');
-      socket.off('gameEnd');
-      socket.off('penaltyReceived');
+      unsubUpdateBoard();
+      unsubRoomUpdate();
+      unsubJoinError();
+      unsubMoveError();
+      unsubGameOver();
+      unsubGameEnd();
+      unsubPenaltyReceived();
+      unsubDisconnect();
       if (currentApp) {
         currentApp.removeEventListener('keydown', handleKeyDown);
         currentApp.removeEventListener('keyup', handleKeyUp);
@@ -132,14 +128,13 @@ const BonusGameSpeed = () => {
   }, [roomName, playerName]);
 
   const handleLeave = () => {
-    setTimeout(() => socketRef.current?.emit('leaveRoom'), 0);
+    socketService.leaveRoom();
     navigate('/bonus');
   };
 
   const handleStartGame = () => {
-    socketRef.current?.emit('startGame');
-    // Inform server this room should be in speed mode for bonus namespace
-    socketRef.current?.emit('setSpeedMode', { roomName, enabled: true, mode: 'bonus' });
+    socketService.startGame();
+    socketService.setSpeedMode(roomName, true, 'bonus');
   };
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 
 // Mock the pages
 jest.mock('../../client/pages/HomePage', () => {
@@ -60,7 +60,7 @@ describe('Client Index', () => {
             'utf8'
         );
         
-        expect(indexContent).toContain('BrowserRouter');
+        expect(indexContent).toContain('HashRouter');
         expect(indexContent).toContain('Routes');
         expect(indexContent).toContain('Route');
         expect(indexContent).toContain('HomePage');

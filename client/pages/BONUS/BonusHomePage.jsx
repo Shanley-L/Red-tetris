@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../HomePage.css';
 import './BonusHomePage.css';
-import io from 'socket.io-client';
+import socketService from '../../services/socketService';
 
 const SHAPES = [
     { shape: [[1,1,1,1]], color: 'cyan' },
@@ -18,7 +18,6 @@ const SHAPES = [
 const SpeedScoreboard = () => {
     const [scores, setScores] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const socketRef = useRef(null);
     
     useEffect(() => {
         let isMounted = true;
@@ -43,11 +42,7 @@ const SpeedScoreboard = () => {
         
         fetchScores();
         
-        // Only create socket once
-        if (!socketRef.current) {
-            socketRef.current = io();
-        }
-        const socket = socketRef.current;
+        socketService.initSocket();
         
         const onUpdate = (data) => {
             if (isMounted && Array.isArray(data)) {
@@ -55,11 +50,11 @@ const SpeedScoreboard = () => {
                 setIsLoading(false);
             }
         };
-        socket.on('speedScoresUpdated', onUpdate);
+        const unsub = socketService.on('speedScoresUpdated', onUpdate);
         
         return () => {
             isMounted = false;
-            socket.off('speedScoresUpdated', onUpdate);
+            unsub();
         };
     }, []);
     
@@ -92,7 +87,7 @@ const SpeedScoreboard = () => {
 const ReverseScoreboard = () => {
     const [scores, setScores] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const socketRef = useRef(null);
+    
     useEffect(() => {
         let isMounted = true;
         const fetchScores = () => {
@@ -103,11 +98,10 @@ const ReverseScoreboard = () => {
                 .catch(() => { if (isMounted) { setScores([]); setIsLoading(false); }});
         };
         fetchScores();
-        if (!socketRef.current) socketRef.current = io();
-        const socket = socketRef.current;
+        socketService.initSocket();
         const onUpdate = (data) => { if (isMounted && Array.isArray(data)) { setScores(data); setIsLoading(false); } };
-        socket.on('reverseScoresUpdated', onUpdate);
-        return () => { isMounted = false; socket.off('reverseScoresUpdated', onUpdate); };
+        const unsub = socketService.on('reverseScoresUpdated', onUpdate);
+        return () => { isMounted = false; unsub(); };
     }, []);
     return (
         <div className="scoreboard card">
@@ -136,7 +130,7 @@ const ReverseScoreboard = () => {
 const NewbrickScoreboard = () => {
     const [scores, setScores] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const socketRef = useRef(null);
+    
     useEffect(() => {
         let isMounted = true;
         const fetchScores = () => {
@@ -147,11 +141,10 @@ const NewbrickScoreboard = () => {
                 .catch(() => { if (isMounted) { setScores([]); setIsLoading(false); }});
         };
         fetchScores();
-        if (!socketRef.current) socketRef.current = io();
-        const socket = socketRef.current;
+        socketService.initSocket();
         const onUpdate = (data) => { if (isMounted && Array.isArray(data)) { setScores(data); setIsLoading(false); } };
-        socket.on('newbrickScoresUpdated', onUpdate);
-        return () => { isMounted = false; socket.off('newbrickScoresUpdated', onUpdate); };
+        const unsub = socketService.on('newbrickScoresUpdated', onUpdate);
+        return () => { isMounted = false; unsub(); };
     }, []);
     return (
         <div className="scoreboard card">

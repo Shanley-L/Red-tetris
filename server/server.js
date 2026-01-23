@@ -774,10 +774,49 @@ io.on('connection', (socket) => {
             rooms.delete(roomKey);
             console.log(`Room ${currentRoom.name} deleted`);
         } else {
+            // Reassign host if needed when game has ended but room continues
+            if (currentRoom.gameEnded && currentRoom.host === socket.id && currentRoom.players.size > 0) {
+                currentRoom.host = currentRoom.players.keys().next().value;
+                console.log(`Host reassigned to ${currentRoom.getPlayer(currentRoom.host).name}`);
+            }
             broadcastRoomUpdate(currentRoom);
         }
         currentRoom = null;
         currentPlayer = null;
+    });
+
+    socket.on('relaunchGame', () => {
+        try {
+            if (!currentRoom || !currentPlayer) return;
+            
+            // Only the host (top player) can relaunch
+            if (currentPlayer.socketId !== currentRoom.host) {
+                throw new RoomError('Only the host can relaunch the game', 'NOT_HOST');
+            }
+            
+            // Game must be ended to relaunch
+            if (!currentRoom.gameEnded) {
+                throw new RoomError('Game must be ended before relaunching', 'GAME_NOT_ENDED');
+            }
+            
+            // Relaunch the game
+            currentRoom.relaunchGame();
+            
+            // Start game loop for the relaunched game
+            if (currentRoom.gameLoop) clearInterval(currentRoom.gameLoop);
+            currentRoom.gameLoop = setInterval(async () => {
+                await handleGameTick(currentRoom);
+            }, currentRoom.gameSpeed);
+            
+            broadcastRoomUpdate(currentRoom);
+            console.log(`Game relaunched in room ${currentRoom.name}`);
+        } catch (error) {
+            console.error(`Error relaunching game: ${error.message}`);
+            socket.emit('relaunchError', { 
+                message: error.message,
+                code: error.code || 'RELAUNCH_ERROR'
+            });
+        }
     });
 
     socket.on('disconnect', () => {
@@ -792,6 +831,7 @@ io.on('connection', (socket) => {
                 rooms.delete(roomKey);
                 console.log(`Room ${currentRoom.name} deleted`);
             } else {
+                // Room still has players, update host if needed and broadcast
                 broadcastRoomUpdate(currentRoom);
             }
         }
