@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import Cell from '../../../client/components/Cell';
 
 describe('Cell Component', () => {
+    // Test: Vérifie que le composant Cell rend correctement une cellule vide (type=0)
+    // Garantit que l'UI affiche correctement les cellules vides
     test('should render empty cell', () => {
         render(<Cell type={0} />);
         
@@ -10,6 +12,8 @@ describe('Cell Component', () => {
         expect(cell).toHaveClass('cell', 'empty');
     });
 
+    // Test: Vérifie que le composant Cell rend correctement une cellule remplie avec une couleur
+    // Garantit que les pièces colorées sont affichées correctement
     test('should render filled cell with string color', () => {
         render(<Cell type="red" />);
         
@@ -25,6 +29,8 @@ describe('Cell Component', () => {
         expect(cell).not.toHaveClass('red', 'blue', 'green'); // No color class for numeric
     });
 
+    // Test: Vérifie que le composant Cell rend correctement une cellule de pénalité (type=8)
+    // Les blocs de pénalité doivent être visuellement distincts
     test('should render penalty cell', () => {
         render(<Cell type={8} />);
         

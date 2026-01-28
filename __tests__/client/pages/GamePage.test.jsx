@@ -8,7 +8,6 @@ jest.mock('../../../client/services/socketService', () => ({
     __esModule: true,
     default: {
         initSocket: jest.fn(),
-        getSocket: jest.fn(),
         disconnect: jest.fn(),
         joinRoom: jest.fn(),
         startGame: jest.fn(),
@@ -16,10 +15,8 @@ jest.mock('../../../client/services/socketService', () => ({
         movePiece: jest.fn(),
         stopSoftDrop: jest.fn(),
         leaveRoom: jest.fn(),
-        setSpeedMode: jest.fn(),
         onUpdateBoard: jest.fn(),
         onRoomUpdate: jest.fn(),
-        onGameStart: jest.fn(),
         onGameEnd: jest.fn(),
         onGameOver: jest.fn(),
         onPenaltyReceived: jest.fn(),
@@ -48,7 +45,6 @@ describe('GamePage Component', () => {
         // Default mock implementations
         socketService.onUpdateBoard.mockReturnValue(jest.fn());
         socketService.onRoomUpdate.mockReturnValue(jest.fn());
-        socketService.onGameStart.mockReturnValue(jest.fn());
         socketService.onGameEnd.mockReturnValue(jest.fn());
         socketService.onGameOver.mockReturnValue(jest.fn());
         socketService.onPenaltyReceived.mockReturnValue(jest.fn());
@@ -58,6 +54,8 @@ describe('GamePage Component', () => {
         socketService.onDisconnect.mockReturnValue(jest.fn());
     });
 
+    // Test: Vérifie que GamePage se rend sans erreur
+    // Garantit que la page de jeu principale s'affiche correctement
     test('should render GamePage component', () => {
         render(
             <HashRouter>
@@ -128,6 +126,8 @@ describe('GamePage Component', () => {
         expect(screen.getByText('Leave Room')).toBeInTheDocument();
     });
 
+    // Test: Vérifie que joinRoom est appelé au montage du composant
+    // Exigence : le joueur doit rejoindre la room automatiquement via l'URL
     test('should call joinRoom on component mount', () => {
         render(
             <HashRouter>
@@ -150,6 +150,8 @@ describe('GamePage Component', () => {
         expect(socketService.onRoomUpdate).toHaveBeenCalled();
     });
 
+    // Test: Vérifie que le bouton "Start Game" apparaît pour le host
+    // Exigence de la correction : "Only the first one can launch it"
     test('should show start game button when host and game not started', () => {
         socketService.onRoomUpdate.mockImplementation((callback) => {
             callback({
@@ -272,6 +274,8 @@ describe('GamePage Component', () => {
         expect(screen.getByText(/Room is full/i)).toBeInTheDocument();
     });
 
+    // Test: Vérifie que l'écran de victoire s'affiche quand le joueur gagne
+    // Exigence : "The game is over when one player is left"
     test('should display win screen when player won', () => {
         socketService.onGameEnd.mockImplementation((callback) => {
             callback({ winner: 'testPlayer', isWinner: true });
@@ -369,6 +373,8 @@ describe('GamePage Component', () => {
         expect(socketService.relaunchGame).toHaveBeenCalled();
     });
 
+    // Test: Vérifie qu'une notification s'affiche quand une pénalité est reçue
+    // Exigence du sujet : "opponents receive a n - 1 line malus"
     test('should display penalty notification when received', async () => {
         socketService.onPenaltyReceived.mockImplementation((callback) => {
             callback({ lines: 2, fromPlayer: 'opponent' });
@@ -387,6 +393,8 @@ describe('GamePage Component', () => {
         });
     });
 
+    // Test: Vérifie que la flèche gauche déplace la pièce à gauche
+    // Exigence du sujet : "Left/Right arrows: Move piece horizontally"
     test('should move piece left with ArrowLeft key', () => {
         socketService.onRoomUpdate.mockImplementation((callback) => {
             callback({
@@ -431,6 +439,8 @@ describe('GamePage Component', () => {
         expect(socketService.movePiece).toHaveBeenCalledWith('right');
     });
 
+    // Test: Vérifie que la flèche haut fait tourner la pièce
+    // Exigence du sujet : "Up arrow: Rotate piece"
     test('should rotate piece with ArrowUp key', () => {
         socketService.onRoomUpdate.mockImplementation((callback) => {
             callback({
@@ -488,6 +498,8 @@ describe('GamePage Component', () => {
         expect(socketService.stopSoftDrop).toHaveBeenCalled();
     });
 
+    // Test: Vérifie que la barre d'espace fait un hard drop
+    // Exigence du sujet : "Spacebar: Hard drop to fill a gap"
     test('should hard drop with Space key', () => {
         socketService.onRoomUpdate.mockImplementation((callback) => {
             callback({

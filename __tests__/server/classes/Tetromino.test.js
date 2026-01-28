@@ -1,6 +1,8 @@
 const { Tetromino, PIECE_TYPES } = require('../../../server/classes/Tetromino');
 
 describe('Tetromino Class', () => {
+    // Test: Vérifie que Tetromino peut être créé avec un type spécifique (ex: 'I')
+    // Garantit que les pièces sont créées correctement avec leurs propriétés
     test('should create tetromino with specific type', () => {
         const tetromino = new Tetromino('I');
         
@@ -12,6 +14,8 @@ describe('Tetromino Class', () => {
         expect(tetromino.r).toBe(0);
     });
 
+    // Test: Vérifie que tous les 7 types de tétriminos sont créés correctement
+    // Exigence du sujet : "The game will use the original Tetrimino shapes"
     test('should create all piece types correctly', () => {
         const pieces = ['I', 'O', 'T', 'L', 'J', 'S', 'Z'];
         const expectedColors = ['cyan', 'yellow', 'purple', 'orange', 'blue', 'green', 'red'];
@@ -27,6 +31,8 @@ describe('Tetromino Class', () => {
         });
     });
 
+    // Test: Vérifie que Tetromino peut être créé aléatoirement sans type spécifié
+    // Utilisé pour générer des pièces aléatoires dans la séquence
     test('should create random tetromino when no type provided', () => {
         const tetromino = new Tetromino();
         
@@ -38,6 +44,8 @@ describe('Tetromino Class', () => {
         expect(tetromino.r).toBe(0);
     });
 
+    // Test: Vérifie que Tetromino peut utiliser une fonction random personnalisée
+    // Important pour les séquences partagées : même seed = même séquence
     test('should use custom random function', () => {
         let callCount = 0;
         const mockRandom = () => {

@@ -10,6 +10,8 @@ jest.mock('../../../client/components/Cell', () => {
 });
 
 describe('Board Component', () => {
+    // Test: Vérifie que le composant Board rend correctement une grille vide
+    // Garantit que l'UI affiche correctement l'état initial du jeu
     test('should render empty board', () => {
         const emptyBoard = Array.from({ length: 20 }, () => Array(10).fill(0));
         
@@ -24,6 +26,8 @@ describe('Board Component', () => {
         });
     });
 
+    // Test: Vérifie que le composant Board rend correctement une grille avec des pièces
+    // Garantit que l'UI affiche correctement les blocs placés
     test('should render board with pieces', () => {
         const boardWithPieces = Array.from({ length: 20 }, (_, y) => 
             Array.from({ length: 10 }, (_, x) => {
@@ -45,6 +49,8 @@ describe('Board Component', () => {
         expect(filledCells.length).toBeGreaterThan(0);
     });
 
+    // Test: Vérifie que le composant Board rend correctement les blocs de pénalité
+    // Exigence du sujet : les lignes de pénalité (n-1) doivent être visibles
     test('should render board with penalty blocks', () => {
         const boardWithPenalty = Array.from({ length: 20 }, (_, y) => 
             Array.from({ length: 10 }, (_, x) => {

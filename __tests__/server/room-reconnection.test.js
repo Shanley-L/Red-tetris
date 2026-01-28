@@ -7,6 +7,8 @@ describe('Room Reconnection After Game End', () => {
         room = new Room('testRoom');
     });
 
+    // Test: Vérifie que de nouveaux joueurs peuvent rejoindre après la fin d'une partie
+    // Exigence de la correction : "After the end of a game and before relaunching it, new players can join"
     test('should allow new players to join after game ends', () => {
         // Add two players and start a game
         const player1 = room.addPlayer('socket1', 'Player1');
@@ -37,6 +39,8 @@ describe('Room Reconnection After Game End', () => {
         expect(room.players.size).toBe(2);
     });
 
+    // Test: Vérifie que l'état du jeu est réinitialisé quand la partie s'arrête
+    // Important pour permettre de relancer une nouvelle partie proprement
     test('should reset game state when game stops', () => {
         // Add players and start game
         const player1 = room.addPlayer('socket1', 'Player1');
@@ -62,6 +66,8 @@ describe('Room Reconnection After Game End', () => {
         expect(room.currentPieceIndex).toBe(0);
     });
 
+    // Test: Vérifie qu'une nouvelle partie peut être démarrée après la fin de la précédente
+    // Exigence de la correction : possibilité de relancer une partie
     test('should allow starting a new game after previous game ended', () => {
         // Add players and start first game
         room.addPlayer('socket1', 'Player1');
@@ -82,6 +88,8 @@ describe('Room Reconnection After Game End', () => {
         expect(room.gameStarted).toBe(true);
     });
 
+    // Test: Vérifie que la room gère correctement le cas où tous les joueurs se déconnectent
+    // Important pour éviter les fuites mémoire et les rooms orphelines
     test('should handle empty room after all players disconnect', () => {
         // Add players and start game
         room.addPlayer('socket1', 'Player1');

@@ -8,6 +8,8 @@ describe('Room Class', () => {
         room = new Room('testRoom');
     });
 
+    // Test: Vérifie que Room est créée avec toutes les propriétés correctes
+    // Garantit que la room est dans un état cohérent au démarrage
     test('should create room with correct properties', () => {
         expect(room.name).toBe('testRoom');
         expect(room.players).toBeInstanceOf(Map);
@@ -20,6 +22,8 @@ describe('Room Class', () => {
     });
 
     describe('addPlayer', () => {
+        // Test: Vérifie que le premier joueur à rejoindre devient le host
+        // Exigence de la correction : "Only the first one can launch it"
         test('should add first player and make them host', () => {
             const player = room.addPlayer('socket1', 'Player1');
             
@@ -47,6 +51,8 @@ describe('Room Class', () => {
             }).toThrow(PlayerError);
         });
 
+        // Test: Vérifie qu'une erreur est lancée quand la room est pleine (2 joueurs max)
+        // Exigence du sujet : limite de 2 joueurs par room
         test('should throw error when room is full', () => {
             room.addPlayer('socket1', 'Player1');
             room.addPlayer('socket2', 'Player2');
@@ -67,6 +73,8 @@ describe('Room Class', () => {
             expect(shouldDelete).toBe(true); // Room is empty after removing last player
         });
 
+        // Test: Vérifie qu'un nouveau host est assigné quand le host actuel quitte
+        // Important pour la continuité du jeu : quelqu'un doit pouvoir relancer
         test('should assign new host when host leaves', () => {
             const player1 = room.addPlayer('socket1', 'Player1');
             const player2 = room.addPlayer('socket2', 'Player2');
@@ -138,6 +146,8 @@ describe('Room Class', () => {
             expect(room.canJoin()).toBe(false);
         });
 
+        // Test: Vérifie qu'un joueur ne peut pas rejoindre une partie en cours
+        // Exigence de la correction : "A player cannot join a game in progress"
         test('should return false when game has started', () => {
             room.gameStarted = true;
             expect(room.canJoin()).toBe(false);
@@ -158,6 +168,8 @@ describe('Room Class', () => {
             }).toThrow(RoomError);
         });
 
+        // Test: Vérifie qu'une partie peut être démarrée avec des joueurs
+        // Garantit que le mécanisme de démarrage fonctionne correctement
         test('should start game successfully with players', () => {
             room.addPlayer('socket1', 'Player1');
             
@@ -316,6 +328,8 @@ describe('Room Class', () => {
     });
 
     describe('stopGame', () => {
+        // Test: Vérifie que stopGame arrête la partie et nettoie les timers
+        // Important pour éviter les fuites mémoire et permettre de relancer
         test('should stop game and clear timers', () => {
             const mockGameLoop = setInterval(() => {}, 1000);
             const player = room.addPlayer('socket1', 'Player1');
@@ -338,6 +352,8 @@ describe('Room Class', () => {
     });
 
     describe('getSpectrum', () => {
+        // Test: Vérifie que getSpectrum calcule correctement le spectre d'un joueur
+        // Exigence du sujet : "spectrum view of their fields" pour voir les adversaires
         test('should return spectrum for player', () => {
             const mockPlayer = {
                 board: {

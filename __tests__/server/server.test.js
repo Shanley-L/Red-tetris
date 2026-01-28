@@ -3,6 +3,7 @@ jest.mock('express', () => {
     const mockApp = {
         use: jest.fn(),
         get: jest.fn(),
+        post: jest.fn(),
         listen: jest.fn()
     };
     const express = jest.fn(() => mockApp);
@@ -39,11 +40,35 @@ jest.mock('../../server/classes/Player', () => jest.fn());
 jest.mock('../../server/classes/Board', () => jest.fn());
 jest.mock('../../server/classes/Room', () => jest.fn());
 jest.mock('../../server/classes/Tetromino', () => ({}));
+jest.mock('../../server/logic/gameLogic', () => ({
+    cloneGrid: jest.fn(),
+    canPlace: jest.fn(),
+    rotateShape: jest.fn(),
+    rotateShapeCCW: jest.fn(),
+    rotatePieceWithKicks: jest.fn(),
+    movePiece: jest.fn(),
+    lockPiece: jest.fn(),
+    clearLines: jest.fn(),
+    addPenaltyLines: jest.fn(),
+    addPenaltyLinesReverse: jest.fn(),
+    renderWithPiece: jest.fn()
+}));
 jest.mock('../../server/errors', () => ({
     RoomError: jest.fn(),
     PlayerError: jest.fn(),
     ValidationError: jest.fn(),
     NetworkError: jest.fn()
+}));
+
+jest.mock('../../server/database', () => ({
+    updateScore: jest.fn(),
+    getTopScores: jest.fn(),
+    addSpeedGameScore: jest.fn(),
+    getTopSpeedGameScores: jest.fn(),
+    addReverseGameScore: jest.fn(),
+    getTopReverseGameScores: jest.fn(),
+    addNewbrickGameScore: jest.fn(),
+    getTopNewbrickGameScores: jest.fn()
 }));
 
 // Now import the server
@@ -282,10 +307,11 @@ describe('Server', () => {
         expect(gameLogic.rotateShapeCCW).toBeDefined();
         expect(gameLogic.rotatePieceWithKicks).toBeDefined();
         expect(gameLogic.movePiece).toBeDefined();
+        expect(gameLogic.rotatePieceWithKicks).toBeDefined();
+        expect(gameLogic.movePiece).toBeDefined();
         expect(gameLogic.lockPiece).toBeDefined();
         expect(gameLogic.clearLines).toBeDefined();
         expect(gameLogic.addPenaltyLines).toBeDefined();
-        expect(gameLogic.addPenaltyLinesReverse).toBeDefined();
         expect(gameLogic.renderWithPiece).toBeDefined();
     });
 

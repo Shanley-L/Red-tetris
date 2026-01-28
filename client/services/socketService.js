@@ -17,16 +17,6 @@ const initSocket = () => {
 };
 
 /**
- * Get socket instance (creates if not exists)
- */
-const getSocket = () => {
-  if (!socket) {
-    return initSocket();
-  }
-  return socket;
-};
-
-/**
  * Subscribe to socket events with automatic cleanup
  * Returns unsubscribe function
  */
@@ -155,13 +145,6 @@ const onRoomUpdate = (callback) => {
 };
 
 /**
- * Listen for game started event
- */
-const onGameStart = (callback) => {
-  return on('gameStart', callback);
-};
-
-/**
  * Listen for game end (when winner is determined)
  */
 const onGameEnd = (callback) => {
@@ -210,13 +193,32 @@ const onDisconnect = (callback) => {
   return on('disconnect', callback);
 };
 
+/**
+ * Listen for speed scores updates
+ */
+const onSpeedScoresUpdated = (callback) => {
+  return on('speedScoresUpdated', callback);
+};
+
+/**
+ * Listen for reverse scores updates
+ */
+const onReverseScoresUpdated = (callback) => {
+  return on('reverseScoresUpdated', callback);
+};
+
+/**
+ * Listen for newbrick scores updates
+ */
+const onNewbrickScoresUpdated = (callback) => {
+  return on('newbrickScoresUpdated', callback);
+};
+
 // Export socket service API
 const socketService = {
   // Socket control
   initSocket,
-  getSocket,
   disconnect,
-  cleanupAllListeners,
 
   // Game commands
   joinRoom,
@@ -230,7 +232,6 @@ const socketService = {
   // Event listeners
   onUpdateBoard,
   onRoomUpdate,
-  onGameStart,
   onGameEnd,
   onGameOver,
   onPenaltyReceived,
@@ -238,6 +239,9 @@ const socketService = {
   onMoveError,
   onRelaunchError,
   onDisconnect,
+  onSpeedScoresUpdated,
+  onReverseScoresUpdated,
+  onNewbrickScoresUpdated,
 };
 
 module.exports = socketService;

@@ -11,7 +11,7 @@ describe('Server Utility Functions', () => {
         return { shape: piece.shape, color: piece.color };
     }
 
-    function makePieceFromTetromino(t) {
+    function makePieceFromTetromino(t, roomMode = 'normal') {
         return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
     }
 
@@ -89,6 +89,7 @@ describe('Server Utility Functions', () => {
                 r: 0
             });
         });
+
     });
 
     describe('Server Content Analysis', () => {
@@ -122,7 +123,7 @@ describe('Server Utility Functions', () => {
 
         test('should contain utility functions', () => {
             expect(serverContent).toContain('function serializePiece(piece)');
-            expect(serverContent).toContain('function makePieceFromTetromino(t)');
+            expect(serverContent).toContain('function makePieceFromTetromino(t, roomMode');
             expect(serverContent).toContain('function checkGameEnd(room)');
             expect(serverContent).toContain('function handleGameTick(room)');
         });
@@ -153,8 +154,8 @@ describe('Server Utility Functions', () => {
 
         test('should contain piece sequence logic', () => {
             expect(serverContent).toContain('pieceSequence');
-            expect(serverContent).toContain('currentPieceIndex');
-            expect(serverContent).toContain('seededRandom');
+            expect(serverContent).toContain('sequenceIndex');
+            // seededRandom is in Room.js, not server.js
         });
 
         test('should contain game over logic', () => {

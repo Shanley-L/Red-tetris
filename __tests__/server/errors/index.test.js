@@ -8,6 +8,8 @@ const {
 
 describe('Custom Error Classes', () => {
     describe('GameError', () => {
+        // Test: Vérifie que GameError est créé avec un code par défaut
+        // Les erreurs personnalisées permettent une gestion d'erreur plus précise
         test('should create GameError with default code', () => {
             const error = new GameError('Test message');
             
@@ -18,6 +20,8 @@ describe('Custom Error Classes', () => {
             expect(error.code).toBe('GAME_ERROR');
         });
 
+        // Test: Vérifie que GameError peut être créé avec un code personnalisé
+        // Permet de différencier les types d'erreurs (ex: 'ROOM_FULL', 'PLAYER_NOT_FOUND')
         test('should create GameError with custom code', () => {
             const error = new GameError('Test message', 'CUSTOM_CODE');
             

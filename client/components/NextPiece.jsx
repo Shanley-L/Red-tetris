@@ -1,6 +1,6 @@
 import React from 'react';
 import Cell from './Cell';
-import './Board.css'; // ou Cell.css selon ton setup
+import './Board.css';
 
 const NextPiece = ({ piece }) => {
   if (!piece || !piece.shape || !piece.shape[0]) return null;

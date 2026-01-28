@@ -10,6 +10,8 @@ jest.mock('../../../client/components/Cell', () => {
 });
 
 describe('NextPiece Component', () => {
+    // Test: Vérifie que NextPiece ne rend rien quand la pièce est null
+    // Garantit que l'UI gère correctement l'absence de pièce suivante
     test('should render nothing when piece is null', () => {
         render(<NextPiece piece={null} />);
         
@@ -24,6 +26,8 @@ describe('NextPiece Component', () => {
         expect(screen.queryByTestId('cell')).toBeNull();
     });
 
+    // Test: Vérifie que NextPiece rend correctement la pièce I
+    // Garantit que la "next piece" est affichée correctement pour le joueur
     test('should render I-piece correctly', () => {
         const iPiece = {
             shape: [

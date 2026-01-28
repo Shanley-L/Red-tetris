@@ -23,12 +23,16 @@ describe('HomePage Component', () => {
         jest.clearAllMocks();
     });
 
+    // Test: Vérifie que HomePage rend le titre correctement
+    // Garantit que la page d'accueil s'affiche avec les éléments de base
     test('should render home page with title', () => {
         renderHomePage();
         
         expect(screen.getByText('Red Tetris')).toBeInTheDocument();
     });
 
+    // Test: Vérifie que HomePage rend le formulaire de connexion
+    // Exigence du sujet : formulaire pour rejoindre une room avec roomName et playerName
     test('should render form with room name and player name inputs', () => {
         renderHomePage();
         

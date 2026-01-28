@@ -53,11 +53,15 @@ const GamePage = () => {
       }
     };
 
+    // Listen on window to catch keyboard events even if focus is elsewhere
+    // This ensures controls work without needing to click on the game area
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    // Auto-focus the game area for better UX
     const currentApp = appRef.current;
     if (currentApp) {
       currentApp.focus();
-      currentApp.addEventListener('keydown', handleKeyDown);
-      currentApp.addEventListener('keyup', handleKeyUp);
     }
 
     // Subscribe to socket events
@@ -123,10 +127,8 @@ const GamePage = () => {
       unsubPenaltyReceived?.();
       unsubDisconnect?.();
 
-      if (currentApp) {
-        currentApp.removeEventListener('keydown', handleKeyDown);
-        currentApp.removeEventListener('keyup', handleKeyUp);
-      }
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
   }, [roomName, playerName]);
 
@@ -146,6 +148,13 @@ const GamePage = () => {
   // Keep a ref in sync with gameStarted state for event handlers
   useEffect(() => {
     gameStartedRef.current = gameStarted;
+  }, [gameStarted]);
+
+  // Auto-focus the game area when it's rendered and game starts
+  useEffect(() => {
+    if (appRef.current && gameStarted) {
+      appRef.current.focus();
+    }
   }, [gameStarted]);
 
   if (error) {

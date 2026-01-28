@@ -42,7 +42,7 @@ describe('Server Static Analysis', () => {
 
         test('should define utility functions', () => {
             expect(serverContent).toContain('function serializePiece(piece)');
-            expect(serverContent).toContain('function makePieceFromTetromino(t)');
+            expect(serverContent).toContain('function makePieceFromTetromino(t, roomMode');
             expect(serverContent).toContain('function checkGameEnd(room)');
             expect(serverContent).toContain('function handleGameTick(room)');
         });
@@ -70,13 +70,14 @@ describe('Server Static Analysis', () => {
         });
 
         test('should define makePieceFromTetromino function correctly', () => {
-            const makePieceMatch = serverContent.match(/function makePieceFromTetromino\(t\) \{[\s\S]*?\}/);
+            const makePieceMatch = serverContent.match(/function makePieceFromTetromino\(t, roomMode[^)]*\) \{[\s\S]*?\}/);
             expect(makePieceMatch).toBeTruthy();
             expect(makePieceMatch[0]).toContain('type: t.type');
             expect(makePieceMatch[0]).toContain('shape: t.shape');
             expect(makePieceMatch[0]).toContain('color: t.color');
             expect(makePieceMatch[0]).toContain('x: 3');
-            expect(makePieceMatch[0]).toContain('y: 0');
+            // Function can return y: 0 (normal) or y: 18 (reverse mode)
+            expect(makePieceMatch[0]).toMatch(/y:\s*(0|18)/);
             expect(makePieceMatch[0]).toContain('r: 0');
         });
 
@@ -94,14 +95,14 @@ describe('Server Static Analysis', () => {
 
     describe('Socket Event Handlers', () => {
         test('should handle joinRoom event', () => {
-            const joinRoomMatch = serverContent.match(/socket\.on\('joinRoom', \(\{ roomName, playerName \}\) => \{[\s\S]*?\}\);/);
+            const joinRoomMatch = serverContent.match(/socket\.on\('joinRoom',[^)]*\{[\s\S]*?\}\);/);
             expect(joinRoomMatch).toBeTruthy();
             expect(joinRoomMatch[0]).toContain('roomName');
             expect(joinRoomMatch[0]).toContain('playerName');
         });
 
         test('should handle move event', () => {
-            const moveMatch = serverContent.match(/socket\.on\('move', \(\{ direction \}\) => \{[\s\S]*?\}\);/);
+            const moveMatch = serverContent.match(/socket\.on\('move',[^)]*\{[\s\S]*?\}\);/);
             expect(moveMatch).toBeTruthy();
             expect(moveMatch[0]).toContain('direction');
         });
@@ -137,7 +138,7 @@ describe('Server Static Analysis', () => {
             expect(serverContent).toContain('RoomError');
             expect(serverContent).toContain('PlayerError');
             expect(serverContent).toContain('ValidationError');
-            expect(serverContent).toContain('NetworkError');
+            // NetworkError removed - not used in server.js
         });
 
         test('should manage rooms and players', () => {

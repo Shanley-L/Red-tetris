@@ -1,0 +1,70 @@
+Game functionalities : 
+Running the game in solo mode
+A player can join a new game and launch it. The access URL toa game is
+faithful to the doc (hash-based). ex.:http://<server_name_or_ip>:<port>/<room>/<player_name>.
+
+Launching the game in multiplayer mode: 
+Muliiple players can join a new game. Only the first one can launch it.
+A player cannot join a game in progress.
+The game is faithful to the principles of Tetris.
+The game is over when on player is left.
+
+Relaunch a game:
+At the end of a game, only the top player of the game can relaunch it If
+this player has left the game, a new player replaces them and can launch
+a new game instead.
+After the end of a game and before relaunching it,
+new players can join the game.
+
+Blocks dispatch:
+During a game, players receive the same sequence of blocks in the same
+position and coordinates.
+
+Moving the blocks:
+Blocks rotate, move to the left, to the right, and fall as indicated in
+the documentation. You can move a block during a timer tick once it's
+landed, except if you forced the fall.
+
+Line injection:
+When a player destroys lines, opponents receive a n - 1 line malus. They
+are indestructible and appear at the base of their structure.
+
+Graphic interface:
+Respect of the HTML / DOM constraints
+A flexbox or a grid layout is used instead of a
+tag. No use of canvas or
+SVG. No DOM handling library usage.
+
+Spectres visualization:
+In multiplayer mode, it is possible to identify the opponents thanks to
+their names and observe the specter of their structure. Each modification
+of an opponent's structure shows in their spectre.
+Client implementation:
+Socket.io encapsulation
+The use of a socketio must be completely encapsulated in a middleware.
+
+Functional programming:
+Never call ‘this* except to define new 'error’ sub-classes. AIl the logic
+relative to the load management of the blocks must be written as pure
+functions.
+
+Server implementation:
+Objet oriented programming
+Games and players management server logic must be implemented as
+object programming.
+
+Unitary tests:
+Sufficient cover
+The ‘ npm run coverage* command must indicate that tests cover at least
+70% of the statements, functions, lines and at least 50% of the branches.
+
+Bonus:
+Bonus will be taken into account only if the mandatory part is PERFECT. PERFECT meaning it is completed, that its
+behavior cannot be faulted, even because of the slightest mistake, improper use, efc... Practically, it means that if the
+mandatory part is not validated, none of the bonus will be taken in consideration.
+
+In this part, you will count the bonuses proposed by the subject or added
+by the project owner.
+Each bonus must be:
+Atleast a little useful (at your discretion)
+Well implemented and 100% functional

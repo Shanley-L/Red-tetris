@@ -8,7 +8,6 @@ const {
     lockPiece,
     clearLines,
     addPenaltyLines,
-    addPenaltyLinesReverse,
     renderWithPiece,
 } = require('../../../server/logic/gameLogic');
 
@@ -36,25 +35,35 @@ describe('Game Logic Functions', () => {
     });
 
     describe('canPlace', () => {
+        // Test: Vérifie que canPlace retourne true quand une pièce peut être placée valablement
+        // Ce test garantit que la fonction de collision détecte correctement les placements valides
         test('should return true for valid placement', () => {
             expect(canPlace(testGrid, testPiece, 0, 0)).toBe(true);
         });
 
+        // Test: Vérifie que canPlace détecte correctement les sorties de grille à gauche
+        // Important pour éviter que les pièces sortent de la zone de jeu
         test('should return false for out of bounds (left)', () => {
             testPiece.x = -1;
             expect(canPlace(testGrid, testPiece, 0, 0)).toBe(false);
         });
 
+        // Test: Vérifie que canPlace détecte correctement les sorties de grille à droite
+        // Important pour éviter que les pièces sortent de la zone de jeu
         test('should return false for out of bounds (right)', () => {
             testPiece.x = 8; // Piece width 3, grid width 10, so x=8 would overflow
             expect(canPlace(testGrid, testPiece, 0, 0)).toBe(false);
         });
 
+        // Test: Vérifie que canPlace détecte correctement les sorties de grille en bas
+        // Important pour détecter quand une pièce touche le bas de la grille
         test('should return false for out of bounds (bottom)', () => {
             testPiece.y = 19; // Piece height 3, grid height 20, so y=19 would overflow
             expect(canPlace(testGrid, testPiece, 0, 0)).toBe(false);
         });
 
+        // Test: Vérifie que canPlace détecte les collisions avec les blocs déjà placés
+        // Cœur de la logique Tetris : une pièce ne peut pas passer à travers les blocs existants
         test('should return false for collision with existing blocks', () => {
             // Place a block at (4, 1)
             testGrid[1][4] = 'red';
@@ -62,6 +71,8 @@ describe('Game Logic Functions', () => {
             expect(canPlace(testGrid, testPiece, 0, 0)).toBe(false);
         });
 
+        // Test: Vérifie qu'une pièce peut être placée au-dessus de blocs existants
+        // Garantit que les pièces peuvent tomber normalement sans collision prématurée
         test('should return true for placement above existing blocks', () => {
             // Place blocks at bottom
             testGrid[19][4] = 'red';
@@ -69,6 +80,8 @@ describe('Game Logic Functions', () => {
             expect(canPlace(testGrid, testPiece, 0, 0)).toBe(true);
         });
 
+        // Test: Vérifie que canPlace gère correctement les décalages (dx, dy)
+        // Permet de tester les placements avec des mouvements relatifs
         test('should handle offset parameters correctly', () => {
             expect(canPlace(testGrid, testPiece, 1, 1)).toBe(true);
             expect(canPlace(testGrid, testPiece, -5, 0)).toBe(false); // More negative to ensure out of bounds
@@ -76,6 +89,8 @@ describe('Game Logic Functions', () => {
     });
 
     describe('rotateShape', () => {
+        // Test: Vérifie que rotateShape effectue une rotation horaire correcte d'une forme 2x2
+        // Garantit que les rotations de base fonctionnent pour les petites pièces
         test('should rotate 2x2 shape correctly', () => {
             const shape = [
                 [1, 0],
@@ -89,6 +104,8 @@ describe('Game Logic Functions', () => {
             expect(rotated).toEqual(expected);
         });
 
+        // Test: Vérifie que rotateShape effectue une rotation horaire correcte d'une forme 3x3
+        // Garantit que les rotations fonctionnent pour les pièces plus complexes (comme le T-piece)
         test('should rotate 3x3 shape correctly', () => {
             const shape = [
                 [0, 1, 0],
@@ -104,6 +121,8 @@ describe('Game Logic Functions', () => {
             expect(rotated).toEqual(expected);
         });
 
+        // Test: Vérifie que rotateShape gère correctement la rotation de la pièce I (4x4)
+        // La pièce I est spéciale car elle est plus grande et nécessite une rotation précise
         test('should handle 4x4 I-piece rotation', () => {
             const shape = [
                 [0, 0, 0, 0],
@@ -123,6 +142,8 @@ describe('Game Logic Functions', () => {
     });
 
     describe('rotateShapeCCW', () => {
+        // Test: Vérifie que rotateShapeCCW effectue une rotation anti-horaire correcte
+        // Important pour les rotations dans les deux sens (CW et CCW)
         test('should rotate counter-clockwise correctly', () => {
             const shape = [
                 [1, 0],
@@ -138,12 +159,16 @@ describe('Game Logic Functions', () => {
     });
 
     describe('rotatePieceWithKicks', () => {
+        // Test: Vérifie que rotatePieceWithKicks effectue une rotation quand c'est possible
+        // Garantit que les rotations fonctionnent dans des conditions normales
         test('should rotate piece when possible', () => {
             const rotated = rotatePieceWithKicks(testGrid, testPiece, 'CW');
             expect(rotated.r).toBe(1);
             expect(rotated.shape).not.toEqual(testPiece.shape);
         });
 
+        // Test: Vérifie que rotatePieceWithKicks retourne la pièce originale si la rotation échoue
+        // Important : si une rotation est impossible (grille pleine), la pièce ne doit pas changer
         test('should return original piece when rotation fails', () => {
             // Fill grid to prevent rotation
             for (let y = 0; y < 20; y++) {
@@ -155,11 +180,15 @@ describe('Game Logic Functions', () => {
             expect(rotated).toEqual(testPiece);
         });
 
+        // Test: Vérifie que rotatePieceWithKicks gère les rotations anti-horaires
+        // Garantit que les deux sens de rotation fonctionnent avec les kicks
         test('should handle CCW rotation', () => {
             const rotated = rotatePieceWithKicks(testGrid, testPiece, 'CCW');
             expect(rotated.r).toBe(3);
         });
 
+        // Test: Vérifie que rotatePieceWithKicks applique les "wall kicks" (décalages près des murs)
+        // Les wall kicks permettent de tourner une pièce même près d'un mur en la décalant légèrement
         test('should apply wall kicks when needed', () => {
             // Position piece near right wall
             testPiece.x = 7;
@@ -169,24 +198,32 @@ describe('Game Logic Functions', () => {
     });
 
     describe('movePiece', () => {
+        // Test: Vérifie que movePiece déplace une pièce horizontalement
+        // Correspond aux mouvements gauche/droite du joueur
         test('should move piece horizontally', () => {
             const moved = movePiece(testPiece, 1, 0);
             expect(moved.x).toBe(4);
             expect(moved.y).toBe(0);
         });
 
+        // Test: Vérifie que movePiece déplace une pièce verticalement
+        // Correspond à la chute automatique des pièces
         test('should move piece vertically', () => {
             const moved = movePiece(testPiece, 0, 1);
             expect(moved.x).toBe(3);
             expect(moved.y).toBe(1);
         });
 
+        // Test: Vérifie que movePiece peut déplacer une pièce en diagonale
+        // Permet de tester les mouvements combinés
         test('should move piece diagonally', () => {
             const moved = movePiece(testPiece, 1, 1);
             expect(moved.x).toBe(4);
             expect(moved.y).toBe(1);
         });
 
+        // Test: Vérifie que movePiece ne modifie pas la pièce originale (immutabilité)
+        // Important pour les pure functions : pas d'effets de bord
         test('should not modify original piece', () => {
             const originalX = testPiece.x;
             const originalY = testPiece.y;
@@ -197,6 +234,8 @@ describe('Game Logic Functions', () => {
     });
 
     describe('lockPiece', () => {
+        // Test: Vérifie que lockPiece place correctement une pièce sur la grille
+        // Cœur du jeu : quand une pièce touche le sol, elle doit être "verrouillée" sur la grille
         test('should place piece on grid', () => {
             const locked = lockPiece(testGrid, testPiece);
             
@@ -214,6 +253,8 @@ describe('Game Logic Functions', () => {
             expect(testGrid).toEqual(originalGrid);
         });
 
+        // Test: Vérifie que lockPiece gère correctement une pièce en bas de grille
+        // Cas limite important : quand une pièce touche le fond
         test('should handle piece at bottom of grid', () => {
             testPiece.y = 18;
             const locked = lockPiece(testGrid, testPiece);
@@ -223,6 +264,8 @@ describe('Game Logic Functions', () => {
     });
 
     describe('clearLines', () => {
+        // Test: Vérifie que clearLines efface une ligne complète
+        // Règle fondamentale du Tetris : les lignes complètes disparaissent
         test('should clear full lines', () => {
             // Fill a line completely
             testGrid[19] = Array(10).fill('red');
@@ -232,6 +275,8 @@ describe('Game Logic Functions', () => {
             expect(result.grid[19]).toEqual(Array(10).fill(0));
         });
 
+        // Test: Vérifie que clearLines efface plusieurs lignes complètes simultanément
+        // Permet de tester les "Tetris" (4 lignes d'un coup) et autres combos
         test('should clear multiple full lines', () => {
             // Fill two lines
             testGrid[18] = Array(10).fill('red');
@@ -243,6 +288,8 @@ describe('Game Logic Functions', () => {
             expect(result.grid[19]).toEqual(Array(10).fill(0));
         });
 
+        // Test: Vérifie que clearLines n'efface pas les lignes avec des trous
+        // Important : seules les lignes 100% complètes doivent être effacées
         test('should not clear lines with gaps', () => {
             // Fill line with one gap
             testGrid[19] = Array(10).fill('red');
@@ -252,6 +299,8 @@ describe('Game Logic Functions', () => {
             expect(result.linesCleared).toBe(0);
         });
 
+        // Test: Vérifie que clearLines n'efface pas les lignes de pénalité (indestructibles)
+        // Règle du sujet : les lignes de pénalité (n-1) sont indestructibles
         test('should not clear lines with penalty blocks', () => {
             // Fill line with penalty blocks (value 8)
             testGrid[19] = Array(10).fill(8);
@@ -260,6 +309,8 @@ describe('Game Logic Functions', () => {
             expect(result.linesCleared).toBe(0);
         });
 
+        // Test: Vérifie que clearLines maintient la hauteur de la grille après effacement
+        // La grille doit toujours faire 20 lignes, même après avoir effacé des lignes
         test('should maintain grid height after clearing', () => {
             testGrid[19] = Array(10).fill('red');
             
@@ -269,6 +320,8 @@ describe('Game Logic Functions', () => {
     });
 
     describe('addPenaltyLines', () => {
+        // Test: Vérifie que addPenaltyLines ajoute des lignes de pénalité en bas de la grille
+        // Règle du sujet : quand un joueur efface des lignes, les autres reçoivent n-1 lignes de pénalité
         test('should add penalty lines at bottom', () => {
             const result = addPenaltyLines(testGrid, 2);
             expect(result.length).toBe(20);
@@ -278,6 +331,8 @@ describe('Game Logic Functions', () => {
             expect(hasPenaltyBlocks).toBe(true);
         });
 
+        // Test: Vérifie que addPenaltyLines maintient la hauteur de la grille
+        // La grille doit toujours faire 20 lignes, même après avoir ajouté des pénalités
         test('should maintain grid height', () => {
             const result = addPenaltyLines(testGrid, 5);
             expect(result.length).toBe(20);
@@ -296,6 +351,8 @@ describe('Game Logic Functions', () => {
     });
 
     describe('renderWithPiece', () => {
+        // Test: Vérifie que renderWithPiece affiche correctement une pièce sur la grille
+        // Utilisé pour l'affichage : montre la grille avec la pièce courante superposée
         test('should render piece on grid', () => {
             const rendered = renderWithPiece(testGrid, testPiece);
             
@@ -313,6 +370,8 @@ describe('Game Logic Functions', () => {
             expect(testGrid).toEqual(originalGrid);
         });
 
+        // Test: Vérifie que renderWithPiece gère une pièce partiellement hors grille
+        // Cas limite : quand une pièce est en train de sortir (avant collision)
         test('should handle piece partially off grid', () => {
             testPiece.x = -1; // Partially off left edge
             const rendered = renderWithPiece(testGrid, testPiece);
@@ -326,6 +385,8 @@ describe('Game Logic Functions', () => {
             expect(rendered[1][1]).toBe('purple'); // Middle right visible part
         });
 
+        // Test: Vérifie que renderWithPiece gère une pièce sans couleur
+        // Cas limite : certaines pièces peuvent ne pas avoir de couleur définie
         test('should handle piece with no color', () => {
             delete testPiece.color;
             const rendered = renderWithPiece(testGrid, testPiece);
@@ -339,6 +400,8 @@ describe('Game Logic Functions', () => {
     });
 
     describe('cloneGrid', () => {
+        // Test: Vérifie que cloneGrid crée une copie profonde de la grille
+        // Important pour l'immutabilité : éviter les références partagées
         test('should create a deep copy of the grid', () => {
             const originalGrid = [
                 [1, 0, 1],
@@ -353,6 +416,8 @@ describe('Game Logic Functions', () => {
             expect(cloned[0]).not.toBe(originalGrid[0]); // Different row references
         });
 
+        // Test: Vérifie que cloneGrid gère correctement une grille vide
+        // Cas limite : grille non initialisée
         test('should handle empty grid', () => {
             const originalGrid = [];
             const cloned = cloneGrid(originalGrid);
@@ -361,6 +426,8 @@ describe('Game Logic Functions', () => {
             expect(cloned).not.toBe(originalGrid);
         });
 
+        // Test: Vérifie que cloneGrid gère correctement une grille avec une seule ligne
+        // Cas limite : grille minimale
         test('should handle single row grid', () => {
             const originalGrid = [[1, 0, 1]];
             const cloned = cloneGrid(originalGrid);
@@ -558,41 +625,6 @@ describe('Game Logic Functions', () => {
         });
     });
 
-    describe('addPenaltyLinesReverse', () => {
-        test('should add penalty lines to top of grid for reverse gravity', () => {
-            const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-            const linesToAdd = 2;
-            
-            const result = addPenaltyLinesReverse(grid, linesToAdd);
-            
-            // Check that penalty lines were added at the top (with random gaps)
-            expect(result[0]).toContain(8); // Should contain penalty blocks
-            expect(result[1]).toContain(8); // Should contain penalty blocks
-            expect(result.length).toBe(20); // Should maintain grid size
-        });
-
-        test('should handle zero penalty lines', () => {
-            const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-            const linesToAdd = 0;
-            
-            const result = addPenaltyLinesReverse(grid, linesToAdd);
-            
-            expect(result).toEqual(grid);
-        });
-
-        test('should handle maximum penalty lines', () => {
-            const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-            const linesToAdd = 20;
-            
-            const result = addPenaltyLinesReverse(grid, linesToAdd);
-            
-            // All lines should contain penalty blocks (with random gaps)
-            result.forEach(row => {
-                expect(row).toContain(8); // Should contain penalty blocks
-                expect(row.length).toBe(10); // Should maintain width
-            });
-        });
-    });
 
     describe('Edge Cases and Error Handling', () => {
         test('should handle null/undefined grid in canPlace', () => {

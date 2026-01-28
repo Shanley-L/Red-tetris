@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../HomePage.css';
 import './BonusHomePage.css';
@@ -50,7 +50,7 @@ const SpeedScoreboard = () => {
                 setIsLoading(false);
             }
         };
-        const unsub = socketService.on('speedScoresUpdated', onUpdate);
+        const unsub = socketService.onSpeedScoresUpdated(onUpdate);
         
         return () => {
             isMounted = false;
@@ -100,7 +100,7 @@ const ReverseScoreboard = () => {
         fetchScores();
         socketService.initSocket();
         const onUpdate = (data) => { if (isMounted && Array.isArray(data)) { setScores(data); setIsLoading(false); } };
-        const unsub = socketService.on('reverseScoresUpdated', onUpdate);
+        const unsub = socketService.onReverseScoresUpdated(onUpdate);
         return () => { isMounted = false; unsub(); };
     }, []);
     return (
@@ -143,7 +143,7 @@ const NewbrickScoreboard = () => {
         fetchScores();
         socketService.initSocket();
         const onUpdate = (data) => { if (isMounted && Array.isArray(data)) { setScores(data); setIsLoading(false); } };
-        const unsub = socketService.on('newbrickScoresUpdated', onUpdate);
+        const unsub = socketService.onNewbrickScoresUpdated(onUpdate);
         return () => { isMounted = false; unsub(); };
     }, []);
     return (

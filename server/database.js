@@ -209,24 +209,6 @@ function getTopScores(n = 20) {
     });
 }
 
-function getAllScores() {
-    return new Promise((resolve, reject) => {
-        db.all(
-            `SELECT player_name, total_score, wins, losses, games, last_updated 
-             FROM scores 
-             ORDER BY total_score DESC, player_name ASC`,
-            (err, rows) => {
-                if (err) {
-                    console.error('Error getting all scores:', err.message);
-                    reject(err);
-                    return;
-                }
-                resolve(rows || []);
-            }
-        );
-    });
-}
-
 function addSpeedGameScore(playerName, score, gameDuration = 0, linesCleared = 0) {
     return new Promise((resolve, reject) => {
         if (!playerName || score === undefined) {
@@ -377,13 +359,10 @@ initDatabase().catch(err => {
 module.exports = {
     updateScore,
     getTopScores,
-    getAllScores,
     addSpeedGameScore,
     getTopSpeedGameScores,
     addReverseGameScore,
     getTopReverseGameScores,
     addNewbrickGameScore,
-    getTopNewbrickGameScores,
-    closeDatabase,
-    initDatabase
+    getTopNewbrickGameScores
 };

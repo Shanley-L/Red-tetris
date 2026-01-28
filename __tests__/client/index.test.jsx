@@ -28,6 +28,8 @@ describe('Client Index', () => {
         jest.clearAllMocks();
     });
 
+    // Test: Vérifie que l'application React se monte sans erreur
+    // Garantit que l'entrée de l'application (index.jsx) est fonctionnelle
     test('should render without crashing', () => {
         // This test ensures the index file can be imported and executed
         expect(() => {
@@ -53,6 +55,8 @@ describe('Client Index', () => {
         expect(indexContent).toContain('root.render');
     });
 
+    // Test: Vérifie que le Router est configuré avec les bonnes routes
+    // Exigence du sujet : URL hash-based (HashRouter) avec routes / et /:roomName/:playerName
     test('should render Router with correct routes', () => {
         // Test that the router is set up correctly
         const indexContent = require('fs').readFileSync(

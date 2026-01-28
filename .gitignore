@@ -16,6 +16,7 @@ Thumbs.db
 # Build output
 dist/
 build/
+public/bundle.js
 
 # Dependency directories
 client/node_modules/
@@ -33,6 +34,10 @@ server/node_modules/
 # Coverage and test output
 coverage/
 .nyc_output/
+
+# Database and data files
+server/data/*.db
+server/data/scoreboard.json
 
 # Misc
 *.tgz

@@ -1,4 +1,3 @@
-
 const express = require('express');
 const path = require('path');
 const http = require('http');
@@ -8,13 +7,15 @@ const Player = require('./classes/Player');
 const Board = require('./classes/Board');
 const Room = require('./classes/Room');
 const { Tetromino } = require('./classes/Tetromino');
-const { RoomError, PlayerError, ValidationError, NetworkError } = require('./errors');
+const { RoomError, PlayerError, ValidationError } = require('./errors');
 const {
     canPlace,
+    canPlaceReverse,
     rotatePieceWithKicks,
     movePiece,
     lockPiece,
     clearLines,
+    clearLinesReverse,
     addPenaltyLines,
     addPenaltyLinesReverse,
     renderWithPiece,
@@ -109,50 +110,6 @@ function makePieceFromTetromino(t, roomMode = 'normal') {
     } else {
         return { type: t.type, shape: t.shape, color: t.color, x: 3, y: 0, r: 0 };
     }
-}
-
-function canPlaceReverse(grid, piece, offsetX = 0, offsetY = 0) {
-    if (!piece) return false;
-    const height = grid.length;
-    const width = grid[0]?.length || 0;
-
-    for (let y = 0; y < piece.shape.length; y++) {
-        for (let x = 0; x < piece.shape[y].length; x++) {
-            if (piece.shape[y][x] !== 0) {
-                const newX = piece.x + x + offsetX;
-                const newY = piece.y + y + offsetY;
-
-                // For reverse gravity: pieces can move upward (negative y direction)
-                // Game over happens when pieces reach the top (y < 0)
-                if (newX < 0 || newX >= width || newY < 0) return false;
-                // Check collision with existing blocks
-                if (newY < height && grid[newY][newX] !== 0) return false;
-            }
-        }
-    }
-    return true;
-}
-
-function clearLinesReverse(grid) {
-    // For reverse gravity, we need to add empty lines at the bottom (not top)
-    const width = grid[0]?.length || 0;
-    let linesCleared = 0;
-    const newGrid = [];
-
-    for (let y = 0; y < grid.length; y++) {
-        // Only clear lines that are full AND don't contain penalty blocks (8)
-        const full = grid[y].every(cell => cell !== 0 && cell !== 8);
-        if (full) {
-            linesCleared++;
-        } else {
-            newGrid.push(grid[y].slice());
-        }
-    }
-    // Add empty lines at the bottom for reverse gravity
-    while (newGrid.length < grid.length) {
-        newGrid.push(Array(width).fill(0));
-    }
-    return { grid: newGrid, linesCleared };
 }
 
 async function checkGameEnd(room) {
