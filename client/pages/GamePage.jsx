@@ -19,6 +19,8 @@ const GamePage = () => {
   const [winner, setWinner] = useState(null);
   const [isWinner, setIsWinner] = useState(false);
   const [isEliminated, setIsEliminated] = useState(false);
+  const [isSolo, setIsSolo] = useState(false);
+  const [waitingForLobby, setWaitingForLobby] = useState(false);
   const [penaltyNotification, setPenaltyNotification] = useState(null);
   const appRef = useRef(null);
   const gameStartedRef = useRef(false);
@@ -77,20 +79,29 @@ const GamePage = () => {
       setIsHost(players.find(p => p.name === playerName)?.isHost || false);
     });
 
-    const unsubJoinError = socketService.onJoinError(({ message, code }) => {
-      setError(`${message} (${code})`);
+    const unsubReturnedToLobby = socketService.onReturnedToLobby(() => {
+      setGameEnded(false);
+      setIsEliminated(false);
+      setIsWinner(false);
+      setIsSolo(false);
+      setWinner(null);
+      setWaitingForLobby(false);
+    });
+
+    const unsubJoinError = socketService.onJoinError(({ message }) => {
+      setError(message);
     });
 
     const unsubMoveError = socketService.onMoveError(({ message, code }) => {
       console.error(`Move error: ${message} (${code})`);
     });
 
-    const unsubGameOver = socketService.onGameOver(() => {
+    const unsubGameOver = socketService.onGameOver(({ solo } = {}) => {
       setGameEnded(true);
       setIsEliminated(true);
       setIsWinner(false);
+      setIsSolo(Boolean(solo));
       setGameStarted(false);
-      socketService.leaveRoom();
     });
 
     const unsubGameEnd = socketService.onGameEnd(({ winner, isWinner }) => {
@@ -120,6 +131,7 @@ const GamePage = () => {
       // Cleanup event listeners
       unsubUpdateBoard?.();
       unsubRoomUpdate?.();
+      unsubReturnedToLobby?.();
       unsubJoinError?.();
       unsubMoveError?.();
       unsubGameOver?.();
@@ -142,6 +154,7 @@ const GamePage = () => {
   };
 
   const handleRelaunchGame = () => {
+    setWaitingForLobby(true);
     socketService.relaunchGame();
   };
 
@@ -162,7 +175,8 @@ const GamePage = () => {
       <div className="game-page">
         <div className="content">
           <div className="error-message">
-            <h2>Error: {error}</h2>
+            <h2>Unable to join the room</h2>
+            <p>{error}</p>
             <button onClick={handleLeave}>Back to Home</button>
           </div>
         </div>
@@ -179,22 +193,24 @@ const GamePage = () => {
               <>
                 <h2>🎉 You Won! 🎉</h2>
                 <p>Congratulations! You are the last player standing!</p>
-                {isHost && (
-                  <button className="relaunch-button" onClick={handleRelaunchGame}>
-                    Relaunch Game
-                  </button>
-                )}
               </>
             ) : isEliminated ? (
               <>
-                <h2>💀 You Were Eliminated 💀</h2>
-                <p>Better luck next time! Your board got too full.</p>
+                <h2>{isSolo ? 'Game Over' : '💀 You Were Eliminated 💀'}</h2>
+                <p>{isSolo ? 'Your board got too full!' : 'Better luck next time! Your board got too full.'}</p>
               </>
             ) : (
               <>
                 <h2>Game Over</h2>
                 <p>Winner: {winner}</p>
               </>
+            )}
+            {waitingForLobby ? (
+              <p className="waiting-lobby">Waiting for the current game to end...</p>
+            ) : (
+              <button className="relaunch-button" onClick={handleRelaunchGame}>
+                Relaunch Game
+              </button>
             )}
             <button onClick={handleLeave}>Back to Home</button>
           </div>

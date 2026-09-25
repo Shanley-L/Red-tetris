@@ -75,8 +75,8 @@ const BonusGameReverse = () => {
       setIsHost(players.find(p => p.name === playerName)?.isHost || false);
     });
 
-    const unsubJoinError = socketService.onJoinError(({ message, code }) => {
-      setError(`${message} (${code})`);
+    const unsubJoinError = socketService.onJoinError(({ message }) => {
+      setError(message);
     });
 
     const unsubMoveError = socketService.onMoveError(({ message, code }) => {
@@ -157,7 +157,8 @@ const BonusGameReverse = () => {
       <div className="game-page bonus-theme">
         <div className="content">
           <div className="error-message">
-            <h2>Error: {error}</h2>
+            <h2>Unable to join the room</h2>
+            <p>{error}</p>
             <button onClick={handleLeave}>Back to Bonus Home</button>
           </div>
         </div>

@@ -218,6 +218,12 @@
   text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
 }
 
+.error-message p {
+  color: #fff;
+  font-size: 16px;
+  margin-bottom: 24px;
+}
+
 .error-message button {
   background: #ff6b6b;
   color: #fff;

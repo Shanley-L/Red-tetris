@@ -175,14 +175,27 @@ async function checkGameEnd(room) {
             
             // Stop the game
             room.stopGame();
+            finishGame(room);
             return true;
         } else {
             // No players left
             room.stopGame();
+            finishGame(room);
             return true;
         }
     }
     return false;
+}
+
+// Move everyone to the end screen, and bring back to the lobby those who already asked to replay
+function finishGame(room) {
+    room.finishGame().forEach(player => sendToLobby(room, player));
+    broadcastRoomUpdate(room);
+}
+
+function sendToLobby(room, player) {
+    player.socket.emit('updateBoard', { board: player.board.grid, nextPiece: null });
+    player.socket.emit('returnedToLobby');
 }
 
 async function handleGameTick(room) {
@@ -296,7 +309,7 @@ async function handleGameTick(room) {
                                     }
                                 }
                                 otherPlayer.socket.emit('gameOver');
-                                room.removePlayer(otherPlayer.socketId);
+                                room.eliminatePlayer(otherPlayer.socketId);
                                 // Reflect host reassignment and player list immediately
                                 broadcastRoomUpdate(room);
                                 
@@ -354,9 +367,9 @@ async function handleGameTick(room) {
                         console.error('[NEWBRICK SCORES] Failed to persist loser score:', e?.message);
                     }
                 }
-                player.socket.emit('gameOver');
-                // Remove player from room
-                room.removePlayer(player.socketId);
+                player.socket.emit('gameOver', { solo: room.getPlayers().length === 1 });
+                // Move player to the end screen (they can relaunch from there)
+                room.eliminatePlayer(player.socketId);
                 // Reflect host reassignment and player list immediately
                 broadcastRoomUpdate(room);
                 
@@ -533,7 +546,10 @@ io.on('connection', (socket) => {
             
             // Check if room can accept new players
             if (!room.canJoin()) {
-                throw new RoomError('Room is full or game has started', 'ROOM_FULL_OR_STARTED');
+                if (room.gameStarted) {
+                    throw new RoomError(`A game is already in progress in room "${roomName}". Wait for it to finish or choose another room.`, 'GAME_IN_PROGRESS');
+                }
+                throw new RoomError(`Room "${roomName}" is full (2 players max). Choose another room name.`, 'ROOM_FULL');
             }
             
             // Add new player to room
@@ -723,42 +739,26 @@ io.on('connection', (socket) => {
             rooms.delete(roomKey);
             console.log(`Room ${currentRoom.name} deleted`);
         } else {
-            // Reassign host if needed when game has ended but room continues
-            if (currentRoom.gameEnded && currentRoom.host === socket.id && currentRoom.players.size > 0) {
-                currentRoom.host = currentRoom.players.keys().next().value;
-                console.log(`Host reassigned to ${currentRoom.getPlayer(currentRoom.host).name}`);
-            }
             broadcastRoomUpdate(currentRoom);
         }
         currentRoom = null;
         currentPlayer = null;
     });
 
+    // "Relaunch" from the end screen: go back to the room lobby, with the partner if they also relaunch
     socket.on('relaunchGame', () => {
         try {
             if (!currentRoom || !currentPlayer) return;
-            
-            // Only the host (top player) can relaunch
-            if (currentPlayer.socketId !== currentRoom.host) {
-                throw new RoomError('Only the host can relaunch the game', 'NOT_HOST');
-            }
-            
-            // Game must be ended to relaunch
-            if (!currentRoom.gameEnded) {
+
+            if (!currentRoom.finished.has(socket.id)) {
                 throw new RoomError('Game must be ended before relaunching', 'GAME_NOT_ENDED');
             }
-            
-            // Relaunch the game
-            currentRoom.relaunchGame();
-            
-            // Start game loop for the relaunched game
-            if (currentRoom.gameLoop) clearInterval(currentRoom.gameLoop);
-            currentRoom.gameLoop = setInterval(async () => {
-                await handleGameTick(currentRoom);
-            }, currentRoom.gameSpeed);
-            
-            broadcastRoomUpdate(currentRoom);
-            console.log(`Game relaunched in room ${currentRoom.name}`);
+
+            const player = currentRoom.returnToLobby(socket.id);
+            if (player) {
+                sendToLobby(currentRoom, player);
+                broadcastRoomUpdate(currentRoom);
+            }
         } catch (error) {
             console.error(`Error relaunching game: ${error.message}`);
             socket.emit('relaunchError', { 

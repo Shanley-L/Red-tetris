@@ -99,6 +99,121 @@ describe('Room Class', () => {
         });
     });
 
+    describe('end screen and return to lobby', () => {
+        test('should move eliminated player to the end screen', () => {
+            room.addPlayer('socket1', 'Player1');
+            const player2 = room.addPlayer('socket2', 'Player2');
+
+            const eliminated = room.eliminatePlayer('socket2');
+
+            expect(eliminated).toBe(player2);
+            expect(room.players.has('socket2')).toBe(false);
+            expect(room.finished.has('socket2')).toBe(true);
+        });
+
+        test('should return undefined when eliminating a non-existent player', () => {
+            expect(room.eliminatePlayer('nonexistent')).toBeUndefined();
+        });
+
+        test('should send every player to the end screen when the game finishes', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.addPlayer('socket2', 'Player2');
+            room.startGame();
+
+            room.eliminatePlayer('socket2');
+            room.finishGame();
+
+            expect(room.players.size).toBe(0);
+            expect(room.finished.size).toBe(2);
+            expect(room.host).toBeNull();
+            expect(room.gameStarted).toBe(false);
+        });
+
+        test('should bring a solo player back to the lobby as host', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.startGame();
+            room.eliminatePlayer('socket1');
+            room.finishGame();
+
+            const player = room.returnToLobby('socket1');
+
+            expect(player.name).toBe('Player1');
+            expect(room.players.has('socket1')).toBe(true);
+            expect(room.finished.size).toBe(0);
+            expect(room.host).toBe('socket1');
+            expect(room.gameStarted).toBe(false);
+            expect(() => room.startGame()).not.toThrow();
+        });
+
+        test('should bring both players back to the same lobby', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.addPlayer('socket2', 'Player2');
+            room.startGame();
+            room.eliminatePlayer('socket1');
+            room.finishGame();
+
+            room.returnToLobby('socket2');
+            room.returnToLobby('socket1');
+
+            expect(room.players.size).toBe(2);
+            expect(room.host).toBe('socket2');
+        });
+
+        test('should give the lobby to the remaining player when the other leaves', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.addPlayer('socket2', 'Player2');
+            room.startGame();
+            room.eliminatePlayer('socket2');
+            room.finishGame();
+
+            room.returnToLobby('socket1');
+            expect(room.removePlayer('socket2')).toBe(false);
+
+            expect(room.players.size).toBe(1);
+            expect(room.finished.size).toBe(0);
+            expect(room.canJoin()).toBe(true);
+        });
+
+        test('should queue a replay request while the game is still running', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.addPlayer('socket2', 'Player2');
+            room.startGame();
+            room.eliminatePlayer('socket2');
+
+            expect(room.returnToLobby('socket2')).toBeUndefined();
+            expect(room.players.has('socket2')).toBe(false);
+
+            const backInLobby = room.finishGame();
+
+            expect(backInLobby.map(p => p.socketId)).toEqual(['socket2']);
+            expect(room.players.has('socket2')).toBe(true);
+            expect(room.finished.has('socket1')).toBe(true);
+            expect(room.host).toBe('socket2');
+        });
+
+        test('should keep the spot of a player on the end screen', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.addPlayer('socket2', 'Player2');
+            room.startGame();
+            room.finishGame();
+            room.returnToLobby('socket1');
+
+            expect(room.canJoin()).toBe(false);
+        });
+
+        test('should delete the room only when nobody is left', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.startGame();
+            room.finishGame();
+
+            expect(room.removePlayer('socket1')).toBe(true);
+        });
+
+        test('should return undefined when returning an unknown player to lobby', () => {
+            expect(room.returnToLobby('nonexistent')).toBeUndefined();
+        });
+    });
+
     describe('getPlayer', () => {
         test('should return player by socket ID', () => {
             const player = room.addPlayer('socket1', 'Player1');

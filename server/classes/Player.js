@@ -16,6 +16,8 @@ class Player {
         this.dropsSinceSpeedUp = 0;
         // Scoring (used for bonus mode)
         this.score = 0;
+        // Clicked "Relaunch" while the game was still running
+        this.wantsReplay = false;
     }
 }
 

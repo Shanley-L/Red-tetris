@@ -214,8 +214,8 @@ describe('Server Functions and Structure', () => {
             expect(serverContent).toContain('canPlace');
             expect(serverContent).toContain('player.board.grid');
             expect(serverContent).toContain('player.currentPiece');
-            expect(serverContent).toContain('player.socket.emit(\'gameOver\')');
-            expect(serverContent).toContain('room.removePlayer');
+            expect(serverContent).toContain('player.socket.emit(\'gameOver\', { solo');
+            expect(serverContent).toContain('room.eliminatePlayer');
             expect(serverContent).toContain('checkGameEnd');
         });
 
@@ -250,7 +250,8 @@ describe('Server Functions and Structure', () => {
 
         test('should test room error handling', () => {
             expect(serverContent).toContain('if (!room.canJoin())');
-            expect(serverContent).toContain('throw new RoomError(\'Room is full or game has started\', \'ROOM_FULL_OR_STARTED\')');
+            expect(serverContent).toContain("'GAME_IN_PROGRESS'");
+            expect(serverContent).toContain("'ROOM_FULL'");
         });
 
         test('should test player error handling', () => {

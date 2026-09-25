@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { HashRouter } from 'react-router-dom';
 
@@ -23,6 +23,7 @@ jest.mock('../../../client/services/socketService', () => ({
         onJoinError: jest.fn(),
         onMoveError: jest.fn(),
         onRelaunchError: jest.fn(),
+        onReturnedToLobby: jest.fn(),
         onDisconnect: jest.fn(),
     },
 }));
@@ -51,6 +52,7 @@ describe('GamePage Component', () => {
         socketService.onJoinError.mockReturnValue(jest.fn());
         socketService.onMoveError.mockReturnValue(jest.fn());
         socketService.onRelaunchError.mockReturnValue(jest.fn());
+        socketService.onReturnedToLobby.mockReturnValue(jest.fn());
         socketService.onDisconnect.mockReturnValue(jest.fn());
     });
 
@@ -274,6 +276,23 @@ describe('GamePage Component', () => {
         expect(screen.getByText(/Room is full/i)).toBeInTheDocument();
     });
 
+    test('should show a readable join error without the technical code', () => {
+        socketService.onJoinError.mockImplementation((callback) => {
+            callback({ message: 'A game is already in progress in room "testRoom".', code: 'GAME_IN_PROGRESS' });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText('Unable to join the room')).toBeInTheDocument();
+        expect(screen.getByText(/A game is already in progress/i)).toBeInTheDocument();
+        expect(screen.queryByText(/GAME_IN_PROGRESS/)).not.toBeInTheDocument();
+    });
+
     // Test: Vérifie que l'écran de victoire s'affiche quand le joueur gagne
     // Exigence : "The game is over when one player is left"
     test('should display win screen when player won', () => {
@@ -320,6 +339,39 @@ describe('GamePage Component', () => {
         );
 
         expect(screen.getByText(/You Were Eliminated/i)).toBeInTheDocument();
+    });
+
+    test('should show relaunch button when solo game over', async () => {
+        socketService.onGameOver.mockImplementation((callback) => {
+            callback({ solo: true });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText('Game Over')).toBeInTheDocument();
+        expect(screen.getByText('Relaunch Game')).toBeInTheDocument();
+    });
+
+    test('should show relaunch button when eliminated in multiplayer', async () => {
+        socketService.onGameOver.mockImplementation((callback) => {
+            callback({ solo: false });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText(/You Were Eliminated/i)).toBeInTheDocument();
+        expect(screen.getByText('Relaunch Game')).toBeInTheDocument();
+        expect(socketService.leaveRoom).not.toHaveBeenCalled();
     });
 
     test('should show relaunch button when host and won', async () => {
@@ -371,6 +423,59 @@ describe('GamePage Component', () => {
         fireEvent.click(relaunchButton);
 
         expect(socketService.relaunchGame).toHaveBeenCalled();
+    });
+
+    test('should wait for the game to end after clicking relaunch', async () => {
+        socketService.onGameOver.mockImplementation((callback) => {
+            callback({ solo: false });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        fireEvent.click(screen.getByText('Relaunch Game'));
+
+        expect(socketService.relaunchGame).toHaveBeenCalled();
+        expect(screen.queryByText('Relaunch Game')).not.toBeInTheDocument();
+        expect(screen.getByText(/Waiting for the current game to end/i)).toBeInTheDocument();
+    });
+
+    test('should go back to the lobby after relaunch', async () => {
+        let returnedToLobbyCallback;
+        socketService.onGameEnd.mockImplementation((callback) => {
+            callback({ winner: 'testPlayer', isWinner: true });
+            return jest.fn();
+        });
+        socketService.onReturnedToLobby.mockImplementation((callback) => {
+            returnedToLobbyCallback = callback;
+            return jest.fn();
+        });
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'testPlayer', isHost: true }],
+                spectrums: [],
+                gameStarted: false
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        fireEvent.click(screen.getByText('Relaunch Game'));
+        act(() => {
+            returnedToLobbyCallback();
+        });
+
+        expect(screen.queryByText(/You Won/i)).not.toBeInTheDocument();
+        expect(screen.getByText('Start Game')).toBeInTheDocument();
     });
 
     // Test: Vérifie qu'une notification s'affiche quand une pénalité est reçue

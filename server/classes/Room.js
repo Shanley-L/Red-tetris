@@ -7,6 +7,7 @@ class Room {
     constructor(roomName) {
         this.name = roomName;
         this.players = new Map(); // socketId -> Player
+        this.finished = new Map(); // socketId -> Player (on the end screen, not yet back in the lobby)
         this.host = null;
         this.gameStarted = false;
         this.gameLoop = null;
@@ -46,28 +47,82 @@ class Room {
         return player;
     }
 
-    removePlayer(socketId) {
+    detachPlayer(socketId) {
         const player = this.players.get(socketId);
-        if (player) {
-            // Clear player's timers
-            if (player.gameLoop) clearInterval(player.gameLoop);
-            if (player.softDropTimer) clearInterval(player.softDropTimer);
-            
-            this.players.delete(socketId);
-            
-            // If host left, assign new host
-            if (this.host === socketId && this.players.size > 0) {
-                this.host = this.players.keys().next().value;
-            }
-            
-            // If no players left, room should be cleaned up
-            if (this.players.size === 0) {
-            this.host = null;
-                this.cleanup();
-                return true; // Room should be deleted
-            }
+        if (!player) return undefined;
+        // Clear player's timers
+        if (player.gameLoop) clearInterval(player.gameLoop);
+        if (player.softDropTimer) clearInterval(player.softDropTimer);
+
+        this.players.delete(socketId);
+
+        // If host left, assign new host
+        if (this.host === socketId) {
+            this.host = this.players.size > 0 ? this.players.keys().next().value : null;
+        }
+        return player;
+    }
+
+    removePlayer(socketId) {
+        const wasFinished = this.finished.delete(socketId);
+        const player = this.detachPlayer(socketId);
+        if (!player && !wasFinished) return false;
+
+        // If nobody is left (in game, lobby or end screen), room should be cleaned up
+        if (this.players.size === 0 && this.finished.size === 0) {
+            this.cleanup();
+            return true; // Room should be deleted
         }
         return false;
+    }
+
+    // Player lost: move them to the end screen, keeping their spot for a replay
+    eliminatePlayer(socketId) {
+        const player = this.detachPlayer(socketId);
+        if (player) {
+            this.finished.set(socketId, player);
+        }
+        return player;
+    }
+
+    // Game over for everyone: remaining players go to the end screen too,
+    // then whoever already asked to replay goes straight back to the lobby
+    finishGame() {
+        this.stopGame();
+        this.players.forEach((player, socketId) => this.finished.set(socketId, player));
+        this.players.clear();
+        this.host = null;
+        return Array.from(this.finished.values())
+            .filter(player => player.wantsReplay)
+            .map(player => this.returnToLobby(player.socketId))
+            .filter(Boolean);
+    }
+
+    // Player clicked "Relaunch": put them back in the lobby with a fresh board.
+    // If a game is still running (partner still playing), queue the request until it ends.
+    returnToLobby(socketId) {
+        const player = this.finished.get(socketId);
+        if (!player) return undefined;
+        if (this.gameStarted || this.players.size >= 2) {
+            player.wantsReplay = true;
+            return undefined;
+        }
+
+        this.finished.delete(socketId);
+        player.wantsReplay = false;
+        player.board = new Board();
+        player.currentPiece = null;
+        player.nextPiece = null;
+        player.pieceSequence = [];
+        player.sequenceIndex = 0;
+        player.score = 0;
+        player.isSoftDropping = false;
+        player.room = this;
+        this.players.set(socketId, player);
+        if (!this.host) {
+            this.host = socketId;
+        }
+        return player;
     }
 
     getPlayer(socketId) {
@@ -82,7 +137,8 @@ class Room {
         // Can join if:
         // 1. Game hasn't started AND room isn't full
         // 2. OR game has ended (allow rejoin for relaunch) AND room isn't full
-        return (!this.gameStarted || this.gameEnded) && this.players.size < 2;
+        // Players still on the end screen keep their spot for a replay
+        return (!this.gameStarted || this.gameEnded) && this.players.size + this.finished.size < 2;
     }
 
     startGame() {
@@ -95,6 +151,7 @@ class Room {
         }
         
         this.gameStarted = true;
+        this.gameEnded = false;
         
         // Generate piece sequence and reset index to ensure all players start from the same point
         this.generatePieceSequence();
@@ -138,43 +195,6 @@ class Room {
         this.pieceSequence = [];
         this.currentPieceIndex = 0;
         this.dropsSinceSpeedUp = 0;
-    }
-
-    relaunchGame() {
-        if (!this.gameEnded) {
-            throw new RoomError('Game must be ended before relaunching');
-        }
-        
-        if (this.players.size === 0) {
-            throw new RoomError('Cannot relaunch game with no players');
-        }
-        
-        // Reset game state for relaunch
-        this.gameStarted = true;
-        this.gameEnded = false;
-        
-        // Generate new piece sequence and reset index
-        this.generatePieceSequence();
-        this.currentPieceIndex = 0;
-        
-        // Reset all players for new game
-        this.players.forEach(player => {
-            player.currentPiece = null;
-            player.nextPiece = null;
-            player.board = new Board();
-            player.pieceSequence = [];
-            player.sequenceIndex = 0;
-            player.score = 0;
-            player.isSoftDropping = false;
-            player.dropIntervalMs = this.gameSpeed;
-            player.lastDropTime = Date.now();
-            player.dropsSinceSpeedUp = 0;
-            player.locksSinceSpeedUp = 0;
-        });
-        
-        // Initialize pieces for all players
-        this.initializePieces();
-        return true;
     }
 
     generatePieceSequence() {

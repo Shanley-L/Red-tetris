@@ -180,7 +180,8 @@ describe('Server Utility Functions', () => {
 
         test('should contain room error handling', () => {
             expect(serverContent).toContain('RoomError');
-            expect(serverContent).toContain('Room is full or game has started');
+            expect(serverContent).toContain('is full (2 players max)');
+            expect(serverContent).toContain('A game is already in progress');
         });
 
         test('should contain player error handling', () => {

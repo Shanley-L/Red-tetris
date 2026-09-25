@@ -94,7 +94,7 @@ const startGame = () => {
 };
 
 /**
- * Relaunch a game (host only, after game ended)
+ * Go back to the room lobby after a game ended
  */
 const relaunchGame = () => {
   emit('relaunchGame');
@@ -187,6 +187,13 @@ const onRelaunchError = (callback) => {
 };
 
 /**
+ * Listen for return to the room lobby (after relaunch)
+ */
+const onReturnedToLobby = (callback) => {
+  return on('returnedToLobby', callback);
+};
+
+/**
  * Listen for disconnect
  */
 const onDisconnect = (callback) => {
@@ -238,6 +245,7 @@ const socketService = {
   onJoinError,
   onMoveError,
   onRelaunchError,
+  onReturnedToLobby,
   onDisconnect,
   onSpeedScoresUpdated,
   onReverseScoresUpdated,

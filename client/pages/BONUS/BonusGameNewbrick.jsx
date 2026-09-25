@@ -75,8 +75,8 @@ const BonusGameNewbrick = () => {
       setIsHost(players.find(p => p.name === playerName)?.isHost || false);
     });
 
-    const unsubJoinError = socketService.onJoinError(({ message, code }) => {
-      setError(`${message} (${code})`);
+    const unsubJoinError = socketService.onJoinError(({ message }) => {
+      setError(message);
     });
 
     const unsubMoveError = socketService.onMoveError(({ message, code }) => {
@@ -150,7 +150,8 @@ const BonusGameNewbrick = () => {
       <div className="game-page">
         <div className="content">
           <div className="error-message">
-            <h2>Error: {error}</h2>
+            <h2>Unable to join the room</h2>
+            <p>{error}</p>
             <button onClick={handleLeave}>Back to Home</button>
           </div>
         </div>
