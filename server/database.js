@@ -85,30 +85,37 @@ function initDatabase() {
                                 reject(err);
                                 return;
                             }
-                            // Seed demo data for reverse/newbrick leaderboards if empty
-                            db.get(`SELECT COUNT(*) as cnt FROM reverse_game_scores`, (err, row) => {
-                                if (err) {
-                                    console.error('Error counting reverse_game_scores:', err.message);
-                                } else if ((row?.cnt || 0) === 0) {
-                                    const seedReverse = db.prepare(`INSERT INTO reverse_game_scores (player_name, score) VALUES (?, ?)`);
-                                    seedReverse.run('Rev_Alice', 1200);
-                                    seedReverse.run('Rev_Bob', 950);
-                                    seedReverse.run('Rev_Carol', 780);
-                                    seedReverse.finalize();
-                                }
-                                // Force-reseed specific demo rows for New Bricks leaderboard
-                                db.run(`DELETE FROM newbrick_game_scores WHERE player_name IN ('Brick_Alice','Brick_Bob','Brick_Carol')`, (delErr) => {
-                                    if (delErr) {
-                                        console.error('Error deleting old newbrick demo rows:', delErr.message);
-                                    }
-                                    const seedNew = db.prepare(`INSERT INTO newbrick_game_scores (player_name, score) VALUES (?, ?)`);
-                                    seedNew.run('Brick_Alice', 900);
-                                    seedNew.run('Brick_Bob', 300);
-                                    seedNew.run('Brick_Carol', 60);
-                                    seedNew.finalize(() => {
-                                        console.log('Database initialized successfully');
-                                        resolve();
-                                    });
+                            // Base leaderboard values (inserted if missing)
+                            const defaultScores = {
+                                speed_game_scores: [
+                                    ['Naelle', 2500],
+                                    ['Shanley', 1800],
+                                    ['asd', 1400]
+                                ],
+                                reverse_game_scores: [
+                                    ['Moomoo', 3700],
+                                    ['Naelle', 1300],
+                                    ['Clementine', 1200]
+                                ],
+                                newbrick_game_scores: [
+                                    ['Shanley', 1200],
+                                    ['q', 900],
+                                    ['Brick_Alice', 900]
+                                ]
+                            };
+                            db.serialize(() => {
+                                Object.entries(defaultScores).forEach(([table, rows]) => {
+                                    const seed = db.prepare(
+                                        `INSERT INTO ${table} (player_name, score)
+                                         SELECT ?, ? WHERE NOT EXISTS
+                                         (SELECT 1 FROM ${table} WHERE player_name = ? AND score = ?)`
+                                    );
+                                    rows.forEach(([name, score]) => seed.run(name, score, name, score));
+                                    seed.finalize();
+                                });
+                                db.run('SELECT 1', () => {
+                                    console.log('Database initialized successfully');
+                                    resolve();
                                 });
                             });
                         });
