@@ -132,7 +132,7 @@ describe('Server Functions and Structure', () => {
     describe('Socket Event Handlers Logic', () => {
         test('should test connection event handler implementation', () => {
             expect(serverContent).toContain("io.on('connection'");
-            expect(serverContent).toContain('User connected:');
+            expect(serverContent).toContain('let currentRoom = null');
             expect(serverContent).toContain('currentRoom = null');
             expect(serverContent).toContain('currentPlayer = null');
         });
@@ -182,7 +182,6 @@ describe('Server Functions and Structure', () => {
 
         test('should test disconnect event handler implementation', () => {
             expect(serverContent).toContain("socket.on('disconnect'");
-            expect(serverContent).toContain('User disconnected:');
             expect(serverContent).toContain('currentRoom');
             expect(serverContent).toContain('currentPlayer');
             expect(serverContent).toContain('removePlayer');

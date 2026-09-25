@@ -9,6 +9,9 @@ const {
     clearLines,
     addPenaltyLines,
     renderWithPiece,
+    canPlaceReverse,
+    clearLinesReverse,
+    addPenaltyLinesReverse,
 } = require('../../../server/logic/gameLogic');
 
 describe('Game Logic Functions', () => {
@@ -657,6 +660,115 @@ describe('Game Logic Functions', () => {
             
             expect(canPlace(testGrid, piece, 1000, 1000)).toBe(false);
             expect(canPlace(testGrid, piece, -1000, -1000)).toBe(false);
+        });
+    });
+
+    describe('canPlaceReverse', () => {
+        test('should return false for null/undefined piece', () => {
+            expect(canPlaceReverse(testGrid, null)).toBe(false);
+            expect(canPlaceReverse(testGrid, undefined)).toBe(false);
+        });
+
+        test('should return true for valid placement', () => {
+            testPiece.y = 18; // Near bottom, falling "up" from there is allowed
+            expect(canPlaceReverse(testGrid, testPiece, 0, 0)).toBe(true);
+        });
+
+        test('should return false for out of bounds (left)', () => {
+            testPiece.x = -1;
+            expect(canPlaceReverse(testGrid, testPiece, 0, 0)).toBe(false);
+        });
+
+        test('should return false for out of bounds (right)', () => {
+            testPiece.x = 8;
+            expect(canPlaceReverse(testGrid, testPiece, 0, 0)).toBe(false);
+        });
+
+        test('should return false for out of bounds (top)', () => {
+            // Reverse gravity: y < 0 is above the field and must be invalid
+            testPiece.y = -1;
+            expect(canPlaceReverse(testGrid, testPiece, 0, 0)).toBe(false);
+        });
+
+        test('should return false for collision with existing blocks', () => {
+            testGrid[0][4] = 'red';
+            testPiece.y = 0;
+            expect(canPlaceReverse(testGrid, testPiece, 0, 0)).toBe(false);
+        });
+
+        test('should handle offset parameters correctly', () => {
+            testPiece.y = 18;
+            expect(canPlaceReverse(testGrid, testPiece, 1, -1)).toBe(true);
+            expect(canPlaceReverse(testGrid, testPiece, -5, 0)).toBe(false);
+        });
+    });
+
+    describe('clearLinesReverse', () => {
+        test('should clear full lines and add empty lines at bottom', () => {
+            testGrid[0] = Array(10).fill('red');
+            const result = clearLinesReverse(testGrid);
+            expect(result.linesCleared).toBe(1);
+            expect(result.grid.length).toBe(20);
+            expect(result.grid[19]).toEqual(Array(10).fill(0));
+        });
+
+        test('should clear multiple full lines', () => {
+            testGrid[0] = Array(10).fill('red');
+            testGrid[1] = Array(10).fill('red');
+            const result = clearLinesReverse(testGrid);
+            expect(result.linesCleared).toBe(2);
+            expect(result.grid.length).toBe(20);
+        });
+
+        test('should not clear lines with gaps', () => {
+            testGrid[0] = Array(10).fill('red');
+            testGrid[0][5] = 0;
+            const result = clearLinesReverse(testGrid);
+            expect(result.linesCleared).toBe(0);
+        });
+
+        test('should not clear lines with penalty blocks', () => {
+            testGrid[0] = Array(10).fill(8);
+            const result = clearLinesReverse(testGrid);
+            expect(result.linesCleared).toBe(0);
+        });
+
+        test('should not modify original grid', () => {
+            testGrid[0] = Array(10).fill('red');
+            const originalGrid = testGrid.map(row => row.slice());
+            clearLinesReverse(testGrid);
+            expect(testGrid).toEqual(originalGrid);
+        });
+    });
+
+    describe('addPenaltyLinesReverse', () => {
+        test('should add penalty lines at top of grid', () => {
+            const result = addPenaltyLinesReverse(testGrid, 2);
+            expect(result.length).toBe(20);
+            const hasPenaltyBlocks = result.some(row => row.includes(8));
+            expect(hasPenaltyBlocks).toBe(true);
+            expect(result[0]).toContain(8);
+        });
+
+        test('should maintain grid height', () => {
+            const result = addPenaltyLinesReverse(testGrid, 5);
+            expect(result.length).toBe(20);
+        });
+
+        test('should maintain grid width', () => {
+            const result = addPenaltyLinesReverse(testGrid, 3);
+            result.forEach(row => expect(row.length).toBe(10));
+        });
+
+        test('should handle zero penalty lines', () => {
+            const result = addPenaltyLinesReverse(testGrid, 0);
+            expect(result).toEqual(testGrid);
+        });
+
+        test('should not modify original grid', () => {
+            const originalGrid = testGrid.map(row => row.slice());
+            addPenaltyLinesReverse(testGrid, 1);
+            expect(testGrid).toEqual(originalGrid);
         });
     });
 });

@@ -101,7 +101,6 @@ class Room {
         this.currentPieceIndex = 0; // Reset to beginning of sequence
         
         console.log(`Starting game in room ${this.name} with ${this.players.size} players`);
-        console.log(`Piece sequence index reset to: ${this.currentPieceIndex}`);
         
         // Give all players the same starting pieces
         this.initializePieces();
@@ -266,9 +265,6 @@ class Room {
             if (player.socket) {
                 const boardWithPiece = this.renderWithPiece(player.board.grid, player.currentPiece);
                 const nextPieceSerialized = this.serializePiece(this.makePieceFromTetromino(player.nextPiece));
-                
-                console.log(`Initializing ${player.name}: current=${player.currentPiece.type}, next=${player.nextPiece.type}`);
-                console.log(`Serialized next piece:`, nextPieceSerialized);
                 
                 player.socket.emit('updateBoard', {
                     board: boardWithPiece,

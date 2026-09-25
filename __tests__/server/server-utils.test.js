@@ -204,7 +204,7 @@ describe('Server Utility Functions', () => {
 
     describe('Socket Event Patterns', () => {
         test('should contain connection handling', () => {
-            expect(serverContent).toContain('User connected:');
+            expect(serverContent).toContain("io.on('connection'");
             expect(serverContent).toContain('currentRoom = null');
             expect(serverContent).toContain('currentPlayer = null');
         });
@@ -235,8 +235,7 @@ describe('Server Utility Functions', () => {
         });
 
         test('should contain disconnect handling', () => {
-            expect(serverContent).toContain('disconnect');
-            expect(serverContent).toContain('User disconnected:');
+            expect(serverContent).toContain("socket.on('disconnect'");
             expect(serverContent).toContain('removePlayer');
             expect(serverContent).toContain('rooms.delete');
         });

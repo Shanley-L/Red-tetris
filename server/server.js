@@ -273,9 +273,6 @@ async function handleGameTick(room) {
                                 if (room.roomMode === 'bonus') {
                                     try {
                                         await updateScore(otherPlayer.name, otherPlayer.score || 0, false);
-                                        const snapshot = await getTopScores(5);
-                                        console.log('[SCOREBOARD] Loser persisted:', otherPlayer.name, 'score=', otherPlayer.score || 0);
-                                        console.log('[SCOREBOARD] Top 5 now:', JSON.stringify(snapshot));
                                         const topScores = await getTopScores(10);
                                         io.emit('scoreboardUpdated', topScores);
                                     } catch (e) {
@@ -475,15 +472,11 @@ function broadcastRoomUpdate(room) {
 }
 
 io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`);
-    
     let currentRoom = null;
     let currentPlayer = null;
 
     socket.on('joinRoom', ({ roomName, playerName, mode = 'normal' }) => {
         try {
-            console.log(`Player ${playerName} trying to join room ${roomName}`);
-            
             // Validate input
             if (!roomName || !playerName) {
                 throw new ValidationError('Room name and player name are required');
@@ -593,7 +586,6 @@ io.on('connection', (socket) => {
                 
                 broadcastRoomUpdate(currentRoom);
                 console.log(`Game started in room ${currentRoom.name}`);
-                console.log(`Piece sequence index: ${currentRoom.currentPieceIndex}`);
             }
         }
     });
@@ -777,8 +769,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.id}`);
-        
         if (currentRoom && currentPlayer) {
             const shouldDeleteRoom = currentRoom.removePlayer(socket.id);
             if (shouldDeleteRoom) {
