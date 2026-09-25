@@ -117,12 +117,14 @@ async function checkGameEnd(room) {
     if (activePlayers.length <= 1) {
         if (activePlayers.length === 1) {
             const winner = activePlayers[0];
+            room.declareWinner(winner.socketId);
             
             // Announce winner to all players
             room.getPlayers().forEach(player => {
                 player.socket.emit('gameEnd', { 
                     winner: winner.name, 
-                    isWinner: player.socketId === winner.socketId 
+                    isWinner: player.socketId === winner.socketId,
+                    isTopPlayer: room.isTopPlayer(player.socketId)
                 });
             });
             // Persist winner score for bonus rooms
@@ -308,7 +310,8 @@ async function handleGameTick(room) {
                                         console.error('[NEWBRICK SCORES] Failed to persist loser score:', e?.message);
                                     }
                                 }
-                                otherPlayer.socket.emit('gameOver');
+                                // Multiplayer loser: the winner decides the relaunch
+                                otherPlayer.socket.emit('gameOver', { solo: false, isTopPlayer: false });
                                 room.eliminatePlayer(otherPlayer.socketId);
                                 // Reflect host reassignment and player list immediately
                                 broadcastRoomUpdate(room);
@@ -367,7 +370,9 @@ async function handleGameTick(room) {
                         console.error('[NEWBRICK SCORES] Failed to persist loser score:', e?.message);
                     }
                 }
-                player.socket.emit('gameOver', { solo: room.getPlayers().length === 1 });
+                // Solo: the player decides the relaunch; multiplayer: the winner does
+                const solo = room.getPlayers().length === 1;
+                player.socket.emit('gameOver', { solo, isTopPlayer: solo });
                 // Move player to the end screen (they can relaunch from there)
                 room.eliminatePlayer(player.socketId);
                 // Reflect host reassignment and player list immediately

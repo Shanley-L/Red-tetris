@@ -599,10 +599,30 @@ describe('Game Logic Functions', () => {
             
             const result = addPenaltyLines(grid, linesToAdd);
             
-            // Check that penalty lines were added at the bottom (with random gaps)
+            // Check that full penalty lines were added at the bottom
             expect(result[18]).toContain(8); // Should contain penalty blocks
             expect(result[19]).toContain(8); // Should contain penalty blocks
             expect(result.length).toBe(20); // Should maintain grid size
+        });
+
+        test('should add full, indestructible and deterministic penalty lines', () => {
+            const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
+
+            const result = addPenaltyLines(grid, 2);
+
+            expect(result[19]).toEqual(Array(10).fill(8));
+            expect(addPenaltyLines(grid, 2)).toEqual(result); // pure: same input, same output
+            expect(clearLines(result).linesCleared).toBe(0); // never cleared
+        });
+
+        test('should add full penalty lines at the top in reverse mode', () => {
+            const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
+
+            const result = addPenaltyLinesReverse(grid, 2);
+
+            expect(result[0]).toEqual(Array(10).fill(8));
+            expect(result[1]).toEqual(Array(10).fill(8));
+            expect(result.length).toBe(20);
         });
 
         test('should handle zero penalty lines', () => {
@@ -620,7 +640,7 @@ describe('Game Logic Functions', () => {
             
             const result = addPenaltyLines(grid, linesToAdd);
             
-            // All lines should contain penalty blocks (with random gaps)
+            // All lines should be full penalty lines
             result.forEach(row => {
                 expect(row).toContain(8); // Should contain penalty blocks
                 expect(row.length).toBe(10); // Should maintain width

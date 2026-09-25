@@ -150,13 +150,69 @@ describe('Room Class', () => {
             room.addPlayer('socket2', 'Player2');
             room.startGame();
             room.eliminatePlayer('socket1');
+            room.declareWinner('socket2');
             room.finishGame();
 
-            room.returnToLobby('socket2');
             room.returnToLobby('socket1');
+            room.returnToLobby('socket2');
 
             expect(room.players.size).toBe(2);
+            expect(room.host).toBe('socket2'); // winner of the last game
+        });
+
+        test('should only let the winner relaunch, even if the host lost', () => {
+            room.addPlayer('socket1', 'Player1'); // host
+            room.addPlayer('socket2', 'Player2');
+            room.startGame();
+            room.eliminatePlayer('socket1');
+            room.declareWinner('socket2');
+            room.finishGame();
+
+            expect(room.isTopPlayer('socket2')).toBe(true);
+            expect(room.isTopPlayer('socket1')).toBe(false);
+
+            // The former host is back first but must wait for the winner
+            room.returnToLobby('socket1');
+            expect(room.host).toBeNull();
+
+            room.returnToLobby('socket2');
             expect(room.host).toBe('socket2');
+        });
+
+        test('should let the solo player relaunch (no winner in solo)', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.startGame();
+            room.eliminatePlayer('socket1');
+            room.finishGame();
+
+            expect(room.isTopPlayer('socket1')).toBe(true);
+        });
+
+        test('should replace the top player when they leave from the end screen', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.addPlayer('socket2', 'Player2');
+            room.startGame();
+            room.declareWinner('socket1');
+            room.finishGame();
+            room.returnToLobby('socket2');
+            expect(room.host).toBeNull();
+
+            room.removePlayer('socket1');
+
+            expect(room.host).toBe('socket2');
+            expect(room.isTopPlayer('socket2')).toBe(true);
+        });
+
+        test('should not give the host role to a newcomer while the top player decides', () => {
+            room.addPlayer('socket1', 'Player1');
+            room.startGame();
+            room.finishGame();
+
+            room.addPlayer('socket3', 'Newcomer');
+            expect(room.host).toBeNull();
+
+            room.returnToLobby('socket1');
+            expect(room.host).toBe('socket1');
         });
 
         test('should give the lobby to the remaining player when the other leaves', () => {
@@ -188,7 +244,7 @@ describe('Room Class', () => {
             expect(backInLobby.map(p => p.socketId)).toEqual(['socket2']);
             expect(room.players.has('socket2')).toBe(true);
             expect(room.finished.has('socket1')).toBe(true);
-            expect(room.host).toBe('socket2');
+            expect(room.host).toBeNull(); // waiting for the top player (socket1)
         });
 
         test('should keep the spot of a player on the end screen', () => {

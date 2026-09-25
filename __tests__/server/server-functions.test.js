@@ -214,7 +214,9 @@ describe('Server Functions and Structure', () => {
             expect(serverContent).toContain('canPlace');
             expect(serverContent).toContain('player.board.grid');
             expect(serverContent).toContain('player.currentPiece');
-            expect(serverContent).toContain('player.socket.emit(\'gameOver\', { solo');
+            expect(serverContent).toContain('player.socket.emit(\'gameOver\'');
+            expect(serverContent).toContain('isTopPlayer: room.isTopPlayer(player.socketId)');
+            expect(serverContent).toContain('room.declareWinner(winner.socketId)');
             expect(serverContent).toContain('room.eliminatePlayer');
             expect(serverContent).toContain('checkGameEnd');
         });

@@ -20,6 +20,7 @@ const GamePage = () => {
   const [isWinner, setIsWinner] = useState(false);
   const [isEliminated, setIsEliminated] = useState(false);
   const [isSolo, setIsSolo] = useState(false);
+  const [isTopPlayer, setIsTopPlayer] = useState(false);
   const [waitingForLobby, setWaitingForLobby] = useState(false);
   const [penaltyNotification, setPenaltyNotification] = useState(null);
   const appRef = useRef(null);
@@ -96,18 +97,20 @@ const GamePage = () => {
       console.error(`Move error: ${message} (${code})`);
     });
 
-    const unsubGameOver = socketService.onGameOver(({ solo } = {}) => {
+    const unsubGameOver = socketService.onGameOver(({ solo, isTopPlayer } = {}) => {
       setGameEnded(true);
       setIsEliminated(true);
       setIsWinner(false);
       setIsSolo(Boolean(solo));
+      setIsTopPlayer(Boolean(isTopPlayer));
       setGameStarted(false);
     });
 
-    const unsubGameEnd = socketService.onGameEnd(({ winner, isWinner }) => {
+    const unsubGameEnd = socketService.onGameEnd(({ winner, isWinner, isTopPlayer }) => {
       setGameEnded(true);
       setWinner(winner);
       setIsWinner(isWinner);
+      setIsTopPlayer(Boolean(isTopPlayer));
       setGameStarted(false);
     });
 
@@ -209,7 +212,7 @@ const GamePage = () => {
               <p className="waiting-lobby">Waiting for the current game to end...</p>
             ) : (
               <button className="relaunch-button" onClick={handleRelaunchGame}>
-                Relaunch Game
+                {isTopPlayer ? 'Relaunch Game' : 'Back to Lobby'}
               </button>
             )}
             <button onClick={handleLeave}>Back to Home</button>
@@ -244,6 +247,10 @@ const GamePage = () => {
             </button>
           )}
           
+          {!gameStarted && !isHost && (
+            <div className="game-status">Waiting for the host to start the game...</div>
+          )}
+
           {gameStarted && (
             <div className="game-status">Game in Progress</div>
           )}

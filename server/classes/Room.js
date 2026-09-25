@@ -9,6 +9,7 @@ class Room {
         this.players = new Map(); // socketId -> Player
         this.finished = new Map(); // socketId -> Player (on the end screen, not yet back in the lobby)
         this.host = null;
+        this.topPlayer = null; // winner of the last game (the host in solo): decides the relaunch
         this.gameStarted = false;
         this.gameLoop = null;
         this.pieceSequence = []; // Shared piece sequence for all players
@@ -40,9 +41,7 @@ class Room {
         this.players.set(socketId, player);
         
         // First player becomes host
-        if (!this.host) {
-            this.host = socketId;
-        }
+        this.updateHost();
         
         return player;
     }
@@ -57,16 +56,39 @@ class Room {
         this.players.delete(socketId);
 
         // If host left, assign new host
-        if (this.host === socketId) {
-            this.host = this.players.size > 0 ? this.players.keys().next().value : null;
-        }
+        this.updateHost();
         return player;
+    }
+
+    // The top player of the last game gets the host role back as soon as they are in the lobby.
+    // While they are still on the end screen nobody else can start; if they left the room,
+    // the first player in the lobby replaces them.
+    updateHost() {
+        if (this.players.has(this.topPlayer)) {
+            this.host = this.topPlayer;
+        } else if (!this.players.has(this.host)) {
+            const topPlayerDeciding = this.finished.has(this.topPlayer);
+            this.host = topPlayerDeciding ? null : (this.players.keys().next().value ?? null);
+        }
+    }
+
+    // Multiplayer: the winner decides whether the room plays again
+    declareWinner(socketId) {
+        this.topPlayer = socketId;
+    }
+
+    // On the end screen: can this player relaunch (i.e. will they be host back in the lobby)?
+    isTopPlayer(socketId) {
+        const topPlayerGone = !this.players.has(this.topPlayer) && !this.finished.has(this.topPlayer);
+        return socketId === this.topPlayer || topPlayerGone;
     }
 
     removePlayer(socketId) {
         const wasFinished = this.finished.delete(socketId);
         const player = this.detachPlayer(socketId);
         if (!player && !wasFinished) return false;
+        // Top player left from the end screen: the lobby gets a new host
+        this.updateHost();
 
         // If nobody is left (in game, lobby or end screen), room should be cleaned up
         if (this.players.size === 0 && this.finished.size === 0) {
@@ -91,7 +113,7 @@ class Room {
         this.stopGame();
         this.players.forEach((player, socketId) => this.finished.set(socketId, player));
         this.players.clear();
-        this.host = null;
+        this.updateHost();
         return Array.from(this.finished.values())
             .filter(player => player.wantsReplay)
             .map(player => this.returnToLobby(player.socketId))
@@ -119,9 +141,7 @@ class Room {
         player.isSoftDropping = false;
         player.room = this;
         this.players.set(socketId, player);
-        if (!this.host) {
-            this.host = socketId;
-        }
+        this.updateHost();
         return player;
     }
 
@@ -152,6 +172,7 @@ class Room {
         
         this.gameStarted = true;
         this.gameEnded = false;
+        this.topPlayer = this.host; // solo has no winner: the player keeps the relaunch
         
         // Generate piece sequence and reset index to ensure all players start from the same point
         this.generatePieceSequence();

@@ -137,12 +137,8 @@ function addPenaltyLines(grid, numLines) {
     const newGrid = cloneGrid(grid);
     
     for (let i = 0; i < numLines; i++) {
+        // Full line of 8 (indestructible: clearLines never removes it)
         const penaltyLine = Array(width).fill(8);
-        const gapCount = Math.floor(Math.random() * 3) + 1;
-        for (let j = 0; j < gapCount; j++) {
-            const gapPos = Math.floor(Math.random() * width);
-            penaltyLine[gapPos] = 0;
-        }
         newGrid.push(penaltyLine);
     }
     
@@ -160,12 +156,8 @@ function addPenaltyLinesReverse(grid, numLines) {
     const newGrid = cloneGrid(grid);
     
     for (let i = 0; i < numLines; i++) {
+        // Full line of 8 (indestructible: clearLines never removes it)
         const penaltyLine = Array(width).fill(8);
-        const gapCount = Math.floor(Math.random() * 3) + 1;
-        for (let j = 0; j < gapCount; j++) {
-            const gapPos = Math.floor(Math.random() * width);
-            penaltyLine[gapPos] = 0;
-        }
         newGrid.unshift(penaltyLine);
     }
     

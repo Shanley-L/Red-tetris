@@ -343,7 +343,7 @@ describe('GamePage Component', () => {
 
     test('should show relaunch button when solo game over', async () => {
         socketService.onGameOver.mockImplementation((callback) => {
-            callback({ solo: true });
+            callback({ solo: true, isTopPlayer: true });
             return jest.fn();
         });
 
@@ -359,7 +359,7 @@ describe('GamePage Component', () => {
 
     test('should show relaunch button when eliminated in multiplayer', async () => {
         socketService.onGameOver.mockImplementation((callback) => {
-            callback({ solo: false });
+            callback({ solo: false, isTopPlayer: true });
             return jest.fn();
         });
 
@@ -376,7 +376,7 @@ describe('GamePage Component', () => {
 
     test('should show relaunch button when host and won', async () => {
         socketService.onGameEnd.mockImplementation((callback) => {
-            callback({ winner: 'testPlayer', isWinner: true });
+            callback({ winner: 'testPlayer', isWinner: true, isTopPlayer: true });
             return jest.fn();
         });
         socketService.onRoomUpdate.mockImplementation((callback) => {
@@ -401,7 +401,7 @@ describe('GamePage Component', () => {
 
     test('should call relaunchGame when relaunch button clicked', async () => {
         socketService.onGameEnd.mockImplementation((callback) => {
-            callback({ winner: 'testPlayer', isWinner: true });
+            callback({ winner: 'testPlayer', isWinner: true, isTopPlayer: true });
             return jest.fn();
         });
         socketService.onRoomUpdate.mockImplementation((callback) => {
@@ -425,9 +425,46 @@ describe('GamePage Component', () => {
         expect(socketService.relaunchGame).toHaveBeenCalled();
     });
 
+    test('should offer to go back to the lobby when not the top player', async () => {
+        socketService.onGameEnd.mockImplementation((callback) => {
+            callback({ winner: 'testPlayer', isWinner: true, isTopPlayer: false });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.queryByText('Relaunch Game')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByText('Back to Lobby'));
+        expect(socketService.relaunchGame).toHaveBeenCalled();
+    });
+
+    test('should tell a non-host player in the lobby to wait for the host', () => {
+        socketService.onRoomUpdate.mockImplementation((callback) => {
+            callback({
+                players: [{ name: 'other', isHost: true }, { name: 'testPlayer', isHost: false }],
+                spectrums: [],
+                gameStarted: false
+            });
+            return jest.fn();
+        });
+
+        render(
+            <HashRouter>
+                <GamePage />
+            </HashRouter>
+        );
+
+        expect(screen.getByText(/Waiting for the host to start the game/i)).toBeInTheDocument();
+        expect(screen.queryByText('Start Game')).not.toBeInTheDocument();
+    });
+
     test('should wait for the game to end after clicking relaunch', async () => {
         socketService.onGameOver.mockImplementation((callback) => {
-            callback({ solo: false });
+            callback({ solo: false, isTopPlayer: true });
             return jest.fn();
         });
 
@@ -447,7 +484,7 @@ describe('GamePage Component', () => {
     test('should go back to the lobby after relaunch', async () => {
         let returnedToLobbyCallback;
         socketService.onGameEnd.mockImplementation((callback) => {
-            callback({ winner: 'testPlayer', isWinner: true });
+            callback({ winner: 'testPlayer', isWinner: true, isTopPlayer: true });
             return jest.fn();
         });
         socketService.onReturnedToLobby.mockImplementation((callback) => {
