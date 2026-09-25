@@ -61,7 +61,7 @@ const SpeedScoreboard = () => {
     return (
         <div className="scoreboard card">
             <div className="scoreboard-header">
-                <h3>🏆 Speed Game Leaderboard</h3>
+                <h3>Speed Game</h3>
             </div>
                    <div className="speed-scoreboard">
                        {isLoading && scores.length === 0 ? (
@@ -105,7 +105,7 @@ const ReverseScoreboard = () => {
     }, []);
     return (
         <div className="scoreboard card">
-            <div className="scoreboard-header"><h3>🔁 Reverse Leaderboard</h3></div>
+            <div className="scoreboard-header"><h3>Reverse</h3></div>
             <div className="speed-scoreboard">
                 {isLoading && scores.length === 0 ? (
                     <div className="score-loading">Loading scores...</div>
@@ -148,7 +148,7 @@ const NewbrickScoreboard = () => {
     }, []);
     return (
         <div className="scoreboard card">
-            <div className="scoreboard-header"><h3>🧱 New Bricks Leaderboard</h3></div>
+            <div className="scoreboard-header"><h3>New Bricks</h3></div>
             <div className="speed-scoreboard">
                 {isLoading && scores.length === 0 ? (
                     <div className="score-loading">Loading scores...</div>
